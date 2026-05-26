@@ -1,0 +1,587 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fuentes unificadas (se agregaron Inter y Herr Von Muellerhoff de los estilos de servicios) */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&family=Bebas+Neue&family=Herr+Von+Muellerhoff&family=Inter:wght@400;500&display=swap');
+
+:root {
+  --black: #050505;
+  --dark: #111111;
+  --card: #161616;
+  --gold: #f5f5dc;
+  --gold-light: #ffffff;
+  --cream: #f5f5dc;
+  --grey: #888888;
+  --border: rgba(245, 245, 220, 0.15);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  overflow-x: hidden;
+}
+
+/* NOISE OVERLAY */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ─── NAV ─── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.2rem 4rem;
+  background: rgba(5,5,5,0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  transition: padding .3s;
+}
+
+.nav-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: 0.18em;
+  color: var(--gold);
+  text-decoration: none;
+}
+.nav-logo span { color: var(--cream); }
+
+.nav-links {
+  display: flex;
+  gap: 2.5rem;
+  list-style: none;
+}
+.nav-links a {
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--grey);
+  text-decoration: none;
+  transition: color .2s;
+}
+.nav-links a:hover { color: var(--gold); }
+
+.nav-cta {
+  background: var(--gold);
+  color: var(--black) !important;
+  padding: 0.55rem 1.4rem;
+  border-radius: 2px;
+  font-weight: 500 !important;
+  letter-spacing: 0.12em;
+  transition: background .2s !important;
+}
+.nav-cta:hover { background: var(--gold-light) !important; color: var(--black) !important; }
+
+/* ─── MOBILE NAV TOGGLE ─── */
+.hamburger {
+  display: none;
+  cursor: pointer;
+}
+
+.mobile-nav {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(5,5,5,0.97);
+  z-index: 99;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+}
+.mobile-nav.open { display: flex; }
+.mobile-nav a {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  color: var(--cream);
+  text-decoration: none;
+  transition: color .2s;
+}
+.mobile-nav a:hover { color: var(--gold); }
+.mobile-nav .close-btn {
+  position: absolute;
+  top: 1.5rem; right: 2rem;
+  background: none;
+  border: none;
+  color: var(--grey);
+  cursor: pointer;
+}
+
+/* ─── ANIMATIONS & UTILITIES ─── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── BOTONES GLOBALES ─── */
+.btn-primary {
+  width: 100%;
+  padding: 15px;
+  background: var(--gold);
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.3s, transform 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.85rem;
+  text-align: center;
+  text-decoration: none;
+}
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.btn-ghost {
+  color: var(--cream);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.7;
+  transition: opacity .2s;
+}
+.btn-ghost:hover { opacity: 1; }
+
+/* ─── HERO EDITORIAL Y EXPANSIVO ─── */
+.hero {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  min-height: 100vh;
+  background: var(--black);
+  overflow: hidden;
+  position: relative;
+}
+
+.hero-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8rem 4rem 6rem 6rem;
+  z-index: 10;
+  position: relative;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 2rem;
+  width: fit-content;
+  animation: fadeUp 0.8s ease both;
+}
+.hero-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(3.5rem, 6vw, 6.5rem);
+  font-weight: 900;
+  line-height: 1.05;
+  margin-bottom: 1.5rem;
+  animation: fadeUp 0.8s 0.1s ease both;
+}
+.hero-title .accent { color: var(--gold); font-style: italic; }
+
+.hero-sub {
+  font-size: 1rem;
+  color: var(--grey);
+  line-height: 1.7;
+  max-width: 400px;
+  margin-bottom: 2.5rem;
+  animation: fadeUp 0.8s 0.2s ease both;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  animation: fadeUp 0.8s 0.3s ease both;
+}
+
+.hero-btn {
+  width: fit-content !important;
+  display: inline-block;
+  padding: 0.85rem 2rem;
+}
+
+/* Lógica del Triptico (Derecha) */
+.hero-right {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.triptych-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.triptych-set {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1s ease;
+}
+
+.triptych-set.active {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.editorial-label {
+  position: absolute;
+  top: 50%;
+  left: -5%;
+  transform: translateY(-50%);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20vw;
+  letter-spacing: 0.1em;
+  color: rgba(245, 245, 220, 0.03);
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.triptych-panel-wrapper {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  height: 100%;
+  width: 100%;
+  z-index: 2;
+  position: relative;
+}
+
+.triptych-panel {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  transform: translateX(100%);
+  transition: transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.triptych-set.active .triptych-panel {
+  transform: translateX(0);
+}
+
+.triptych-panel-wrapper .triptych-panel:nth-child(1) { transition-delay: 0s; }
+.triptych-panel-wrapper .triptych-panel:nth-child(2) { transition-delay: 0.2s; }
+.triptych-panel-wrapper .triptych-panel:nth-child(3) { transition-delay: 0.4s; }
+
+.triptych-overlay {
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(to right, var(--black) 0%, transparent 20%),
+    linear-gradient(to bottom, var(--black) 0%, transparent 5%),
+    linear-gradient(to top, var(--black) 0%, transparent 5%);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ─── SECCIONES GENERALES ─── */
+section { 
+  padding: 6rem 4rem; 
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-tag { color: var(--gold); font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; }
+.section-title { font-family: 'Playfair Display', serif; font-size: clamp(2.5rem, 5vw, 3.5rem); line-height: 1.1; margin: 1rem 0; }
+.section-sub { color: var(--grey); line-height: 1.6; max-width: 500px; }
+
+/* ─── AJUSTE DE ESPACIADO PARA "AGENDA TU CITA" ─── */
+#reservar {
+  padding-top: 1 !important; 
+  margin-top: -10rem; /* Ajusta este número si quieres que suba más o menos */
+  position: relative;
+  z-index: 20; 
+}
+
+@media (max-width: 768px) {
+  #reservar {
+    margin-top: -6rem; /* Ajuste para celulares */
+  }
+}
+
+/* ─── SERVICIOS (SCRIPT CARDS) ─── */
+.service-grid-script {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  padding: 2rem 0;
+}
+
+.service-card-script {
+  position: relative;
+  padding: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  overflow: hidden;
+}
+
+.service-card-script::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  border: 2px solid transparent;
+  transition: border-color 0.4s ease;
+  pointer-events: none;
+}
+
+.service-card-script:hover::before { border-color: var(--gold); }
+.service-card-script:hover { background: rgba(197, 165, 116, 0.15); transform: translateY(-5px); }
+.service-card-script.selected { background: var(--gold); border-color: var(--gold); }
+
+.script-title {
+  font-family: 'Herr Von Muellerhoff', cursive;
+  font-size: 2.5rem;
+  color: var(--gold);
+  margin: 0;
+  transition: color 0.3s ease;
+}
+
+.service-card-script:hover .script-title { color: #fff; }
+
+.duration-script {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15rem;
+  color: var(--grey);
+  margin-top: 0.5rem;
+}
+
+/* ─── FORMULARIO DE RESERVA ─── */
+.booking-form-elegant {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 3rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  max-width: 500px;
+  margin: 2rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.form-group { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 1rem; 
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+input, select {
+  width: 100%;
+  padding: 15px;
+  background: #0d0d0d;
+  border: 1px solid var(--border);
+  color: white;
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+input:focus, select:focus {
+  border-color: var(--gold);
+}
+
+.success-msg {
+  padding: 3rem;
+  text-align: center;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  margin: 2rem auto;
+  max-width: 500px;
+}
+
+/* Ajustes nativos de Select (Elimina el menú feo del navegador) */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23f5f5dc%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem top 50%;
+  background-size: 0.65rem auto;
+  padding-right: 2.5rem;
+  background-color: #0d0d0d;
+  color: white;
+  cursor: pointer;
+}
+
+select option {
+  background-color: var(--black);
+  color: var(--cream);
+  padding: 10px;
+}
+select::-ms-expand { display: none; }
+
+/* ─── FOOTER CENTRADO Y MINIMALISTA ─── */
+.footer-centered {
+  background: var(--black);
+  padding: 5rem 4rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footer-top-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.social-buttons {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.social-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--grey);
+  background: transparent;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.social-icon-btn svg { width: 20px; height: 20px; }
+.social-icon-btn:hover {
+  background: var(--gold);
+  color: var(--black);
+  border-color: var(--gold);
+  transform: translateY(-3px);
+}
+
+.footer-divider {
+  height: 1px;
+  background: var(--border);
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.footer-bottom-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--grey);
+  text-transform: uppercase;
+}
+
+.dev-link {
+  color: var(--cream);
+  text-decoration: none;
+  border-bottom: 1px solid var(--cream);
+  padding-bottom: 2px;
+  margin-left: 5px;
+  transition: color 0.3s, border-color 0.3s;
+}
+
+.dev-link:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+/* ─── RESPONSIVE MÓVIL ─── */
+@media (max-width: 1024px) {
+  nav { padding: 1.2rem 2rem; }
+  .nav-links { display: none; }
+  .hamburger { display: flex; }
+  
+  /* Hero Móvil */
+  .hero { grid-template-columns: 1fr; }
+  .hero-left { padding: 6rem 2rem 4rem; order: 2; }
+  .hero-right { height: 400px; order: 1; }
+  .triptych-panel-wrapper {
+    grid-template-rows: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .triptych-panel { transform: translateY(100%); }
+  .triptych-set.active .triptych-panel { transform: translateY(0); }
+  .triptych-overlay { background: linear-gradient(to top, var(--black) 0%, transparent 30%); }
+}
+
+@media (max-width: 768px) {
+  section { padding: 4rem 1.5rem; }
+  .footer-centered { padding: 4rem 1.5rem 2rem; }
+  .footer-bottom-flex { flex-direction: column; gap: 1.5rem; text-align: center; }
+}
+
+@media (max-width: 640px) {
+  nav { padding: 1rem 1.5rem; }
+  .nav-logo { font-size: 1.3rem; }
+  
+  .hero-left { padding: 5.5rem 1.5rem 1.5rem; }
+  .hero-title { font-size: 2.6rem; }
+  .hero-actions { flex-direction: row; flex-wrap: wrap; gap: 0.8rem; }
+  .hero-btn { font-size: 0.78rem; padding: 0.75rem 1.4rem; }
+}
