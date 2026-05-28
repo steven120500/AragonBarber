@@ -32,7 +32,7 @@ export default function LandingPage() {
             corte <span className="accent text-gold">perfecto</span>
           </h1>
           <p className="hero-sub">
-            Experiencia de barbería de élite. Desde el corte clásico hasta el estilo más contemporáneo — cada visita es un ritual.
+            Experiencia de barbería de élite. Desde el corte clásico hasta el estilo más contemporáneo
           </p>
           <div className="hero-actions">
             <a href="/#reservar" className="btn-primary">Reservar ahora</a>
@@ -49,7 +49,7 @@ export default function LandingPage() {
       {/* SECCIÓN SERVICIOS */}
       <section id="servicios" className="reveal" style={{ padding: '4rem 2rem' }}>
         <h2 className="section-title">Servicios</h2>
-        <p>Corte, barba, rituales y más...</p>
+        <p>Corte, barba y más...</p>
       </section>
 
       {/* RESERVAR */}
@@ -61,7 +61,7 @@ export default function LandingPage() {
       {/* SECCIÓN NOSOTROS */}
       <section id="nosotros" className="reveal" style={{ padding: '4rem 2rem' }}>
         <h2 className="section-title">Nosotros</h2>
-        <p>Información del barbero y la historia de Aragon Barber Shop.</p>
+        <p>Información del barbero y la historia de Aragon Barber Studio.</p>
       </section>
 
       {/* SECCIÓN DE RESEÑAS */}

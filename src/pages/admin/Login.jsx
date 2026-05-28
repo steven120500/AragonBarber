@@ -36,7 +36,7 @@ export default function Login() {
         
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 className="nav-logo" style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>
-            ADMINISTRADOR<br/>DE ARAGÓN
+            ADMINISTRADOR<br/>
           </h1>
           <p className="section-tag" style={{ margin: 0 }}>Acceso exclusivo</p>
         </div>
@@ -52,7 +52,7 @@ export default function Login() {
             <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }}>Correo Electrónico</label>
             <input 
               type="email" 
-              placeholder="barbero@aragon.com" 
+              placeholder="barbero@gmail.com" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

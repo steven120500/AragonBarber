@@ -6,7 +6,7 @@ export default function Footer() {
         {/* Marca y Eslogan */}
         <div style={{ marginBottom: '2.5rem' }}>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', color: 'var(--cream)', marginBottom: '0.5rem', letterSpacing: '0.1em' }}>
-            ARAGON<span style={{ color: 'var(--gold)' }}> BARBER</span>
+            ARAGON<span style={{ color: 'var(--gold)' }}> BARBER STUDIO</span>
           </h2>
           <p style={{ color: 'var(--grey)', fontSize: '0.8rem', letterSpacing: '0.2em', textTransform: 'uppercase', margin: 0 }}>
             El estilo siempre primero
@@ -39,7 +39,7 @@ export default function Footer() {
 
         {/* Sección Inferior (Copyright y Créditos) */}
         <div className="footer-bottom" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center', fontSize: '0.7rem', color: '#666', letterSpacing: '0.1em' }}>
-          <p style={{ margin: 0 }}>© 2026 ARAGON BARBER SHOP. TODOS LOS DERECHOS RESERVADOS.</p>
+          <p style={{ margin: 0 }}>© 2026 ARAGON BARBER STUDIO. TODOS LOS DERECHOS RESERVADOS.</p>
           <p style={{ margin: 0 }}>
             DESARROLLADO POR <a href="https://wa.me/50688028216" target="_blank" rel="noopener noreferrer" className="dev-link">STEVEN CORRALES ALFARO</a>
           </p>
