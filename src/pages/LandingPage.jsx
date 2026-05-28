@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import BookingWrapper from '../components/booking/BookingWrapper';
-import Reseñas from '../components/layout/Reseñas'; // <-- Importación del nuevo componente
+import Reseñas from '../components/layout/Reseñas';
 
 export default function LandingPage() {
   
@@ -24,7 +24,7 @@ export default function LandingPage() {
       <Navbar />
 
       {/* HERO SECTION */}
-      <section className="hero" id="inicio" style={{ padding: 0, maxWidth: '100%' }}>
+      <section className="hero" id="inicio" style={{ padding: '0', maxWidth: '100%' }}>
         <div className="hero-left">
           <div className="hero-badge">Barbería Premium · Est. 2026</div>
           <h1 className="hero-title">
@@ -35,8 +35,8 @@ export default function LandingPage() {
             Experiencia de barbería de élite. Desde el corte clásico hasta el estilo más contemporáneo — cada visita es un ritual.
           </p>
           <div className="hero-actions">
-            <a href="#reservar" className="btn-primary">Reservar ahora</a>
-            <a href="#servicios" className="btn-ghost">Ver servicios →</a>
+            <a href="/#reservar" className="btn-primary">Reservar ahora</a>
+            <a href="/#servicios" className="btn-ghost">Ver servicios →</a>
           </div>
         </div>
         <div className="hero-right">
@@ -46,25 +46,29 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* RESERVAR - Ahora usa BookingWrapper */}
-      <section id="reservar" className="reveal">
-        <span className="section-tag">— Agenda tu visita</span>
-        <h2 className="section-title">
-          Reserva tu cita<br />
-          <span style={{ color: 'var(--gold)', fontStyle: 'italic' }}>en 2 minutos</span>
-        </h2>
-        <p className="section-sub">
-          Elige el servicio, completa tus datos y separa tu espacio inmediatamente.
-        </p>
+      {/* SECCIÓN SERVICIOS */}
+      <section id="servicios" className="reveal" style={{ padding: '4rem 2rem' }}>
+        <h2 className="section-title">Servicios</h2>
+        <p>Corte, barba, rituales y más...</p>
+      </section>
 
-        {/* El wrapper gestiona tanto los iconos de servicios como el formulario */}
-        <div style={{ marginTop: '2rem' }}>
-          <BookingWrapper />
-        </div>
+      {/* RESERVAR */}
+      <section id="reservar" className="reveal" style={{ padding: '4rem 2rem' }}>
+        <h2 className="section-title">Reserva tu cita</h2>
+        <BookingWrapper />
+      </section>
+
+      {/* SECCIÓN NOSOTROS */}
+      <section id="nosotros" className="reveal" style={{ padding: '4rem 2rem' }}>
+        <h2 className="section-title">Nosotros</h2>
+        <p>Información del barbero y la historia de Aragon Barber Shop.</p>
       </section>
 
       {/* SECCIÓN DE RESEÑAS */}
-      <Reseñas />
+      <section id="reseñas" className="reveal" style={{ padding: '4rem 2rem' }}>
+        <h2 className="section-title">Lo que dicen nuestros clientes</h2>
+        <Reseñas />
+      </section>
 
       <Footer />
     </>

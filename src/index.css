@@ -598,3 +598,16 @@ select::-ms-expand { display: none; }
     padding-top: 70px; 
   }
 }
+
+.booking-form-elegant {
+  background-color: #000 !important; /* Fuerza el color negro sólido */
+  border: 1px solid #333;
+  padding: 2rem;
+  border-radius: 12px;
+}
+.form-group label { color: var(--gold); }
+.form-group input, .form-group select {
+  background: #111; /* Mismo tono oscuro para los campos */
+  color: #fff;
+  border: 1px solid #333;
+}
