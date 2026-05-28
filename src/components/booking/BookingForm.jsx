@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { CheckCircle } from 'lucide-react';
+import emailjs from '@emailjs/browser'; // 1. Importar EmailJS
 
 export default function BookingForm({ selectedService }) {
   const [formData, setFormData] = useState({ dia: '', hora: '', nombre: '', apellido: '', email: '', telefono: '' });
@@ -17,18 +18,26 @@ export default function BookingForm({ selectedService }) {
   };
 
   useEffect(() => {
-    // Generar los próximos 7 días a partir de HOY (Hora Costa Rica)
+    // Generar los próximos días a partir de HOY (Hora Costa Rica) excluyendo los domingos
     const dias = [];
     const ahoraCR = obtenerTiempoCR();
     
-    for (let i = 0; i < 7; i++) {
+    // Generamos días hasta tener 7 días laborables
+    let i = 0;
+    let diasAgregados = 0;
+    
+    while (diasAgregados < 7) {
       const fechaObj = new Date(ahoraCR);
       fechaObj.setDate(fechaObj.getDate() + i);
       
-      const textoDia = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-      const valorDB = fechaObj.toISOString().split('T')[0]; 
-      
-      dias.push({ texto: textoDia, valor: valorDB });
+      // getDay() devuelve 0 para el domingo. Solo agregamos si NO es domingo.
+      if (fechaObj.getDay() !== 0) {
+        const textoDia = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const valorDB = fechaObj.toISOString().split('T')[0]; 
+        dias.push({ texto: textoDia, valor: valorDB });
+        diasAgregados++;
+      }
+      i++;
     }
     setListaDias(dias);
 
@@ -103,6 +112,13 @@ export default function BookingForm({ selectedService }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validación de seguridad extra por si acaso
+    if (formData.telefono.length !== 8) {
+      alert("El número de teléfono debe tener exactamente 8 dígitos.");
+      return;
+    }
+
     setLoading(true);
 
     // DOUBLE CHECK: Seguridad antes de insertar (Evita que 2 personas guarden al mismo tiempo)
@@ -119,7 +135,8 @@ export default function BookingForm({ selectedService }) {
       return;
     }
 
-    const { error } = await supabase.from('citas').insert([{
+    // Insertar en base de datos y obtener el registro creado (para sacar el ID)
+    const { data: citaData, error } = await supabase.from('citas').insert([{
       fecha: formData.dia, 
       hora: formData.hora, 
       cliente_nombre: formData.nombre,
@@ -129,15 +146,54 @@ export default function BookingForm({ selectedService }) {
       servicio: selectedService || 'Corte', 
       precio: 0, 
       estado: 'pendiente'
-    }]);
+    }]).select();
+
+    if (error || !citaData) {
+      alert("Error al reservar: " + error.message);
+      setLoading(false);
+      return;
+    }
+
+    // CONFIGURACIÓN DE EMAILJS (Añadido el /#/ para que funcione con tu Router)
+    const citaId = citaData[0].id;
+    const cancelLink = `${window.location.origin}/#/cancelar-cita?id=${citaId}`;
+
+    const templateParams = {
+      cliente_nombre: formData.nombre,
+      cliente_apellido: formData.apellido,
+      telefono: formData.telefono,
+      cliente_email: formData.email,
+      fecha: formData.dia,
+      hora: formData.hora,
+      servicio: selectedService || 'Corte',
+      cancel_link: cancelLink
+    };
+
+    try {
+      // Correo al Barbero (Reemplaza los IDs en MAYÚSCULAS)
+      await emailjs.send(
+        'service_44y34g1', // Service ID
+        'template_aw2t728', // Template ID Barbero
+        templateParams,
+        '2EEPT8Z3vdkbZzwSq' // Public Key
+      );
+
+      // Correo al Cliente (Reemplaza los IDs en MAYÚSCULAS)
+      await emailjs.send(
+        'service_44y34g1', // Service ID
+        'template_0x2ywka', // Template ID Cliente
+        templateParams,
+        '2EEPT8Z3vdkbZzwSq' // Public Key
+      );
+      
+      setSuccess(true);
+    } catch (emailError) {
+      console.error('La cita se guardó, pero falló el correo:', emailError);
+      // Aunque el correo falle, mostramos la pantalla de éxito porque la cita SÍ se guardó
+      setSuccess(true); 
+    }
 
     setLoading(false);
-    
-    if (!error) {
-      setSuccess(true);
-    } else {
-      alert("Error al reservar: " + error.message);
-    }
   };
 
   // 4. PANTALLA DE ÉXITO MINIMALISTA
@@ -201,7 +257,21 @@ export default function BookingForm({ selectedService }) {
 
       <div style={inputGroupStyle}>
         <label style={labelStyle}>TELÉFONO</label>
-        <input type="tel" placeholder="8888 8888" style={inputElementStyle} onChange={e => setFormData({...formData, telefono: e.target.value})} required />
+        <input 
+          type="tel" 
+          placeholder="Ej. 88888888" 
+          maxLength="8"
+          pattern="\d{8}"
+          title="El teléfono debe tener exactamente 8 dígitos numéricos"
+          style={inputElementStyle} 
+          value={formData.telefono}
+          onChange={e => {
+            // Reemplaza cualquier cosa que no sea un número para que el usuario no pueda escribir letras
+            const soloNumeros = e.target.value.replace(/\D/g, ''); 
+            setFormData({...formData, telefono: soloNumeros.slice(0, 8)});
+          }} 
+          required 
+        />
       </div>
 
       <div style={inputGroupStyle}>
@@ -218,7 +288,7 @@ export default function BookingForm({ selectedService }) {
 
 // ─── ESTILOS PREMIUM ───
 const formContainerStyle = {
-  background: '#0a0a0a', // Color oscuro sólido, sin degradado
+  background: '#0a0a0a', 
   border: '1px solid #222',
   borderRadius: '12px',
   padding: '2.5rem',

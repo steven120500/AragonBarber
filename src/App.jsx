@@ -6,8 +6,7 @@ import Footer from './components/layout/Footer';
 import Reseñas from './components/layout/Reseñas';
 import Nosotros from './components/layout/Nosotros';
 import GestionResenas from './pages/admin/GestionResenas'; 
-
-
+import CancelarCita from './pages/CancelarCita'; // <-- NUEVA IMPORTACIÓN
 
 // Vistas del Administrador
 import Login from './pages/admin/Login'; 
@@ -45,6 +44,9 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        
+        {/* Ruta para cancelar cita desde el correo */}
+        <Route path="/cancelar-cita" element={<CancelarCita />} />
         
         {/* Rutas Privadas del Administrador */}
         <Route path="/admin" element={<Login />} />
