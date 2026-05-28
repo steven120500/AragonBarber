@@ -4,12 +4,16 @@ import Hero from './components/layout/Hero';
 import BookingWrapper from './components/booking/BookingWrapper';
 import Footer from './components/layout/Footer';
 import Reseñas from './components/layout/Reseñas';
+import Nosotros from './components/layout/Nosotros';
 import GestionResenas from './pages/admin/GestionResenas'; 
+
+
 
 // Vistas del Administrador
 import Login from './pages/admin/Login'; 
 import MisCitas from './pages/admin/MisCitas'; 
 import Finanzas from './pages/admin/Finanzas'; 
+
 
 function LandingPage() {
   return (
@@ -28,6 +32,8 @@ function LandingPage() {
       
       {/* Sección dinámica de reseñas */}
       <Reseñas />
+
+      <Nosotros />
       
       <Footer />
     </div>

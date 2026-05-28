@@ -28,7 +28,7 @@ export default function Reseñas() {
   if (resenas.length === 0) return null;
 
   return (
-    <section id="reseñas" style={{ padding: '6rem 2rem', background: '#000', borderTop: '1px solid #111' }}>
+    <section id="reseñas" style={{ padding: '6rem 2rem', background: 'transparent', borderTop: '1px solid #111' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
         
         <p style={{ color: 'var(--grey)', textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.85rem', marginBottom: '1rem' }}>

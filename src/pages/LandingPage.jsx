@@ -3,10 +3,12 @@ import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import BookingWrapper from '../components/booking/BookingWrapper';
 import Reseñas from '../components/layout/Reseñas';
+import Nosotros from '../components/layout/Nosotros';
 
 export default function LandingPage() {
   
   useEffect(() => {
+    // Observer para animaciones de entrada al hacer scroll
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(e => {
         if (e.isIntersecting) {
@@ -20,7 +22,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <>
+    <div style={{ background: '#000', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
       <Navbar />
 
       {/* HERO SECTION */}
@@ -49,7 +51,7 @@ export default function LandingPage() {
       {/* SECCIÓN SERVICIOS */}
       <section id="servicios" className="reveal" style={{ padding: '4rem 2rem' }}>
         <h2 className="section-title">Servicios</h2>
-        <p>Corte, barba y más...</p>
+        <p style={{ textAlign: 'center', color: 'var(--grey)' }}>Corte, barba y más...</p>
       </section>
 
       {/* RESERVAR */}
@@ -59,18 +61,12 @@ export default function LandingPage() {
       </section>
 
       {/* SECCIÓN NOSOTROS */}
-      <section id="nosotros" className="reveal" style={{ padding: '4rem 2rem' }}>
-        <h2 className="section-title">Nosotros</h2>
-        <p>Información del barbero y la historia de Aragon Barber Studio.</p>
-      </section>
+      <Nosotros />
 
       {/* SECCIÓN DE RESEÑAS */}
-      <section id="reseñas" className="reveal" style={{ padding: '4rem 2rem' }}>
-        <h2 className="section-title">Lo que dicen nuestros clientes</h2>
-        <Reseñas />
-      </section>
+      <Reseñas />
 
       <Footer />
-    </>
+    </div>
   );
 }
