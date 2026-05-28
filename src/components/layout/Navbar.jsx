@@ -59,7 +59,7 @@ export default function Navbar() {
             <button onClick={handleLogout} style={{ ...btnStyle, background: '#ff4444' }}><LogOut size={18} /> Salir</button>
           </div>
         ) : (
-          <a href="/#/admin" onClick={toggleNav} style={{ color: 'var(--grey)', marginTop: '2rem' }}><User size={20} /> Login</a>
+          <a href="/#/admin" onClick={toggleNav} style={{ color: 'var(--grey)', marginTop: '2rem' }}><User size={20} /></a>
         )}
       </div>
 
