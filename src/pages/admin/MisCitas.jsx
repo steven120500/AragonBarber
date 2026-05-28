@@ -21,9 +21,18 @@ export default function MisCitas() {
   // Estados para Horario
   const [seleccion, setSeleccion] = useState({});
   const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-  const bloquesHorarios = ["14:00", "15:00", "16:00", "17:00", "18:00", "19:00"];
+  
+  // ─── NUEVO: GENERADOR DE BLOQUES DE 30 MINUTOS ───
+  const bloquesHorarios = (() => {
+    const bloques = [];
+    for (let h = 14; h < 20; h++) { // De 14:00 a 19:30
+      bloques.push(`${h}:00`);
+      bloques.push(`${h}:30`);
+    }
+    return bloques;
+  })();
 
-  // ─── NUEVO: FUNCIÓN PARA CONVERTIR A FORMATO 12 HORAS (AM/PM) ───
+  // ─── FUNCIÓN PARA CONVERTIR A FORMATO 12 HORAS (AM/PM) ───
   const formato12h = (hora24) => {
     if (!hora24) return '';
     const [horaStr, minuto] = hora24.split(':');
@@ -99,13 +108,22 @@ export default function MisCitas() {
     if (!modalDesbloqueo.id) return;
     await supabase.from('horarios_bloqueados').delete().eq('id', modalDesbloqueo.id);
     setModalDesbloqueo({ isOpen: false, id: null, dia: '', hora: '' });
-    cargarDatos();
+    cargarDatos(); // Al recargar, la celda queda libre instantáneamente
   };
 
   const aplicarCierres = async () => {
     const nuevos = Object.keys(seleccion).filter(k => seleccion[k]).map(key => {
       const [dia, hora] = key.split('-');
-      return { dia_semana: diasSemana.indexOf(dia) + 1, hora_inicio: `${hora}:00`, hora_fin: `${parseInt(hora)+1}:00` };
+      const [h, m] = hora.split(':');
+      
+      // ─── NUEVO: CÁLCULO DE HORA FIN PARA 30 MINUTOS ───
+      const horaFin = m === '00' ? `${h}:30` : `${parseInt(h) + 1}:00`;
+
+      return { 
+        dia_semana: diasSemana.indexOf(dia) + 1, 
+        hora_inicio: `${hora}:00`, 
+        hora_fin: `${horaFin}:00` 
+      };
     });
     
     if (nuevos.length > 0) {
@@ -156,7 +174,7 @@ export default function MisCitas() {
     } else {
       setIsModalCancelOpen(false);
       setCitaToCancel(null);
-      cargarDatos();
+      cargarDatos(); // Libera el espacio visualmente
     }
   };
 
@@ -190,7 +208,7 @@ export default function MisCitas() {
           <tbody>
             {bloquesHorarios.map(h => (
               <tr key={h}>
-                {/* Aquí aplicamos el formato visual de 12h */}
+                {/* Aplicamos el formato visual de 12h */}
                 <td style={{...tdStyle, fontWeight: 'bold', color: 'var(--gold)'}}>{formato12h(h)}</td>
                 {diasSemana.map((d, idx) => {
                   const cita = getCitaEnCelda(idx, h);
@@ -370,7 +388,8 @@ export default function MisCitas() {
 
 // ─── ESTILOS REUTILIZABLES ───
 const thStyle = { border: '1px solid #222', padding: '12px', color: 'var(--gold)', background: '#111', textTransform: 'uppercase', letterSpacing: '0.1em' };
-const tdStyle = { border: '1px solid #222', padding: '10px', textAlign: 'center', height: '55px', verticalAlign: 'middle', transition: 'background 0.2s ease' };
+// Reducida la altura para compensar las nuevas filas de 30 min
+const tdStyle = { border: '1px solid #222', padding: '10px', textAlign: 'center', height: '45px', verticalAlign: 'middle', transition: 'background 0.2s ease', fontSize: '0.85rem' };
 
 const btnCancel = { flex: 1, background: 'rgba(255, 68, 68, 0.05)', border: '1px solid rgba(255,68,68,0.5)', color: '#ff4444', padding: '0.8rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' };
 const btnCobrar = { flex: 1, background: '#00C851', border: 'none', color: '#000', padding: '0.8rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' };

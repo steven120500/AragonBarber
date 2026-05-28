@@ -8,9 +8,9 @@ export default function BookingWrapper() {
   const sectionRef = useRef(null);
 
   const services = [
-    { id: 'Corte', name: 'Corte', duration: '1h', delay: '0.1s', direction: 'translateX(-50px)' }, // Viene de la izquierda
-    { id: 'Barba', name: 'Barba', duration: '15min', delay: '0.3s', direction: 'translateY(50px)' }, // Viene de abajo
-    { id: 'Combo', name: 'Corte y Barba', duration: '1h', delay: '0.5s', direction: 'translateX(50px)' } // Viene de la derecha
+    { id: 'Corte', name: 'Corte', duration: '1h', price: '4000', delay: '0.1s', direction: 'translateX(-50px)' },
+    { id: 'Barba', name: 'Barba', duration: '30min', price: '2000', delay: '0.3s', direction: 'translateY(50px)' },
+    { id: 'Combo', name: 'Corte y Barba', duration: '1h', price: '6000', delay: '0.5s', direction: 'translateX(50px)' }
   ];
 
   // Lógica para detectar cuando el usuario hace scroll y ve esta sección
@@ -44,7 +44,7 @@ export default function BookingWrapper() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
-            {services.map((s) => (
+          {services.map((s) => (
               <div 
                 key={s.id} 
                 onClick={() => {
@@ -81,15 +81,21 @@ export default function BookingWrapper() {
                 }}>
                   {s.name}
                 </h4>
-                <p style={{ 
-                  fontFamily: 'system-ui, -apple-system, sans-serif', // Tipografía súper legible
-                  color: 'var(--grey)', 
-                  fontSize: '0.9rem',
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase'
+                
+                {/* Duración y Precio */}
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '0.5rem',
+                  fontFamily: 'system-ui, -apple-system, sans-serif'
                 }}>
-                  {s.duration}
-                </p>
+                  <p style={{ color: 'var(--grey)', fontSize: '0.85rem', letterSpacing: '0.15em', textTransform: 'uppercase', margin: 0 }}>
+                    {s.duration}
+                  </p>
+                  <p style={{ color: 'var(--gold)', fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>
+                    ₡{parseInt(s.price).toLocaleString()}
+                  </p>
+                </div>
               </div>
             ))}
           </div>

@@ -26,7 +26,7 @@ export default function LandingPage() {
       <Navbar />
 
       {/* HERO SECTION */}
-      <section className="hero" id="inicio" style={{ padding: '0', maxWidth: '100%' }}>
+      <section className="hero" id="inicio" style={{ padding: '0', maxWidth: '100%', background: 'transparent', border: 'none' }}>
         <div className="hero-left">
           <div className="hero-badge">Barbería Premium · Est. 2026</div>
           <h1 className="hero-title">
@@ -49,13 +49,13 @@ export default function LandingPage() {
       </section>
 
       {/* SECCIÓN SERVICIOS */}
-      <section id="servicios" className="reveal" style={{ padding: '4rem 2rem' }}>
+      <section id="servicios" className="reveal" style={{ padding: '4rem 2rem', background: 'transparent', border: 'none', boxShadow: 'none' }}>
         <h2 className="section-title">Servicios</h2>
         <p style={{ textAlign: 'center', color: 'var(--grey)' }}>Corte, barba y más...</p>
       </section>
 
       {/* RESERVAR */}
-      <section id="reservar" className="reveal" style={{ padding: '4rem 2rem' }}>
+      <section id="reservar" className="reveal" style={{ padding: '4rem 2rem', background: 'transparent', border: 'none', boxShadow: 'none' }}>
         <h2 className="section-title">Reserva tu cita</h2>
         <BookingWrapper />
       </section>

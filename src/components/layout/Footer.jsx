@@ -5,10 +5,10 @@ export default function Footer() {
 
         {/* Marca y Eslogan */}
         <div style={{ marginBottom: '2.5rem' }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', color: 'var(--cream)', marginBottom: '0.5rem', letterSpacing: '0.1em' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1rem', color: 'var(--cream)', marginBottom: '0.5rem', letterSpacing: '0.1em' }}>
             ARAGON<span style={{ color: 'var(--gold)' }}> BARBER STUDIO</span>
           </h2>
-          <p style={{ color: 'var(--grey)', fontSize: '0.8rem', letterSpacing: '0.2em', textTransform: 'uppercase', margin: 0 }}>
+          <p style={{ color: 'var(--grey)', fontSize: '0.5rem', letterSpacing: '0.2em', textTransform: 'uppercase', margin: 0 }}>
             El estilo siempre primero
           </p>
         </div>

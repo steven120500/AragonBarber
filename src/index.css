@@ -611,3 +611,16 @@ select::-ms-expand { display: none; }
   color: #fff;
   border: 1px solid #333;
 }
+
+/* FORZAR FONDO TRANSPARENTE EN TODAS LAS SECCIONES */
+section, 
+.reveal, 
+section:nth-child(even), 
+section:nth-child(odd),
+section:nth-of-type(even),
+section:nth-of-type(odd) {
+    background-color: transparent !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}

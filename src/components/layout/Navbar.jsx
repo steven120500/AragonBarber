@@ -130,7 +130,7 @@ export default function Navbar() {
             src="/Logo.png" 
             alt="Aragon Barber Studio" 
             className="mobile-logo"
-            style={{ height: '45px', objectFit: 'contain' }} 
+            style={{ height: '60px', objectFit: 'contain' }} 
           />
           
           {/* LOGO ESCRITORIO (Texto) */}

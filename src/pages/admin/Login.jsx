@@ -36,7 +36,7 @@ export default function Login() {
         
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 className="nav-logo" style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>
-            ADMINISTRADOR<br/>
+            <br/>
           </h1>
           <p className="section-tag" style={{ margin: 0 }}>Acceso exclusivo</p>
         </div>
