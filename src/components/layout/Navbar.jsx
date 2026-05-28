@@ -48,15 +48,15 @@ export default function Navbar() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%', borderTop: '1px solid rgba(245,245,220,0.1)', paddingTop: '1.5rem' }}>
             <span style={{ color: 'var(--gold)', fontSize: '0.75rem', letterSpacing: '0.2em', marginBottom: '0.5rem' }}>PANEL BARBERO</span>
             
-            <a href="/admin/citas" onClick={toggleNav} style={btnStyle}>
+            <a href="/#/admin/citas" onClick={toggleNav} style={btnStyle}>
               <Calendar size={18} /> Mis Citas
             </a>
             
-            <a href="/admin/finanzas" onClick={toggleNav} style={btnStyle}>
+            <a href="/#/admin/finanzas" onClick={toggleNav} style={btnStyle}>
               <DollarSign size={18} /> Finanzas
             </a>
 
-            <a href="/admin/resenas" onClick={toggleNav} style={btnStyle}>
+            <a href="/#/admin/resenas" onClick={toggleNav} style={btnStyle}>
               <Star size={18} /> Gestionar Reseñas
             </a>
 
@@ -72,7 +72,7 @@ export default function Navbar() {
           </div>
         ) : (
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center', borderTop: '1px solid rgba(245,245,220,0.1)', paddingTop: '1.5rem' }}>
-            <a href="/admin" onClick={toggleNav} style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--grey)' }}>
+            <a href="/#/admin" onClick={toggleNav} style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--grey)' }}>
               <User size={20} /> Iniciar sesión
             </a>
           </div>
@@ -92,12 +92,12 @@ export default function Navbar() {
           <li style={{ marginLeft: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
             {session ? (
               <>
-                <a href="/admin/citas" style={{ color: 'var(--gold)' }} title="Mis Citas"><Calendar size={20} /></a>
-                <a href="/admin/finanzas" style={{ color: 'var(--gold)' }} title="Finanzas"><DollarSign size={20} /></a>
-                <a href="/admin/resenas" style={{ color: 'var(--gold)' }} title="Gestionar Reseñas"><Star size={20} /></a>
+                <a href="/#/admin/citas" style={{ color: 'var(--gold)' }} title="Mis Citas"><Calendar size={20} /></a>
+                <a href="/#/admin/finanzas" style={{ color: 'var(--gold)' }} title="Finanzas"><DollarSign size={20} /></a>
+                <a href="/#/admin/resenas" style={{ color: 'var(--gold)' }} title="Gestionar Reseñas"><Star size={20} /></a>
               </>
             ) : (
-              <a href="/admin" style={{ color: 'var(--grey)', opacity: '0.6' }} title="Iniciar sesión"><User size={18} /></a>
+              <a href="/#/admin" style={{ color: 'var(--grey)', opacity: '0.6' }} title="Iniciar sesión"><User size={18} /></a>
             )}
           </li>
         </ul>
