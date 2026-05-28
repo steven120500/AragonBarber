@@ -1,16 +1,15 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Nav from './components/layout/Navbar'; 
 import Hero from './components/layout/Hero';
 import BookingWrapper from './components/booking/BookingWrapper';
 import Footer from './components/layout/Footer';
 import Reseñas from './components/layout/Reseñas';
-
+import GestionResenas from './pages/admin/GestionResenas'; 
 
 // Vistas del Administrador
 import Login from './pages/admin/Login'; 
 import MisCitas from './pages/admin/MisCitas'; 
 import Finanzas from './pages/admin/Finanzas'; 
-import GestionResenas from './pages/admin/GestionResenas'; // Nueva importación
 
 function LandingPage() {
   return (
@@ -45,7 +44,7 @@ export default function App() {
         <Route path="/admin" element={<Login />} />
         <Route path="/admin/citas" element={<MisCitas />} /> 
         <Route path="/admin/finanzas" element={<Finanzas />} />
-        <Route path="/admin/resenas" element={<GestionResenas />} /> {/* Nueva ruta */}
+        <Route path="/admin/resenas" element={<GestionResenas />} />
       </Routes>
     </Router>
   );
