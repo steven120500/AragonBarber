@@ -215,6 +215,6 @@ export default function Finanzas() {
           </div>
         )}
       </main>
-    </div>
+    </div> 
   );
 }

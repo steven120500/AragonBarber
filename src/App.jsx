@@ -3,11 +3,14 @@ import Nav from './components/layout/Navbar';
 import Hero from './components/layout/Hero';
 import BookingWrapper from './components/booking/BookingWrapper';
 import Footer from './components/layout/Footer';
+import Reseñas from './components/layout/Reseñas';
+
 
 // Vistas del Administrador
 import Login from './pages/admin/Login'; 
 import MisCitas from './pages/admin/MisCitas'; 
-import Finanzas from './pages/admin/Finanzas'; // <-- Importación del nuevo panel de Finanzas
+import Finanzas from './pages/admin/Finanzas'; 
+import GestionResenas from './pages/admin/GestionResenas'; // Nueva importación
 
 function LandingPage() {
   return (
@@ -23,6 +26,10 @@ function LandingPage() {
         </div>
         <BookingWrapper />
       </section>
+      
+      {/* Sección dinámica de reseñas */}
+      <Reseñas />
+      
       <Footer />
     </div>
   );
@@ -37,7 +44,8 @@ export default function App() {
         {/* Rutas Privadas del Administrador */}
         <Route path="/admin" element={<Login />} />
         <Route path="/admin/citas" element={<MisCitas />} /> 
-        <Route path="/admin/finanzas" element={<Finanzas />} /> {/* <-- Ruta lista y funcionando */}
+        <Route path="/admin/finanzas" element={<Finanzas />} />
+        <Route path="/admin/resenas" element={<GestionResenas />} /> {/* Nueva ruta */}
       </Routes>
     </Router>
   );

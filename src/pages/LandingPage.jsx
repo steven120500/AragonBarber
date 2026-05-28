@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import BookingWrapper from '../components/booking/BookingWrapper';
+import Reseñas from '../components/layout/Reseñas'; // <-- Importación del nuevo componente
 
 export default function LandingPage() {
   
@@ -61,6 +62,9 @@ export default function LandingPage() {
           <BookingWrapper />
         </div>
       </section>
+
+      {/* SECCIÓN DE RESEÑAS */}
+      <Reseñas />
 
       <Footer />
     </>

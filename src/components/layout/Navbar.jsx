@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Lock, LogOut, Calendar, DollarSign, User } from 'lucide-react';
+import { Menu, X, LogOut, Calendar, DollarSign, User, Star } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 export default function Navbar() {
@@ -20,11 +20,7 @@ export default function Navbar() {
 
   const toggleNav = () => {
     setIsNavOpen(!isNavOpen);
-    if (!isNavOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    document.body.style.overflow = !isNavOpen ? 'hidden' : 'unset';
   };
 
   const handleLogout = async () => {
@@ -40,7 +36,6 @@ export default function Navbar() {
           <X size={32} />
         </button>
         
-        {/* Enlaces públicos para todos */}
         <a href="/#servicios" onClick={toggleNav}>Servicios</a>
         <a href="/#nosotros" onClick={toggleNav}>Nosotros</a>
         <a href="/#reseñas" onClick={toggleNav}>Reseñas</a>
@@ -49,73 +44,33 @@ export default function Navbar() {
           Reservar cita
         </a>
 
-        {/* LÓGICA DEL SIDEBAR DEPENDIENDO DE LA SESIÓN */}
         {session ? (
-          /* VISTA ADMINISTRADOR: Aparecen las opciones secretas */
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%', borderTop: '1px solid rgba(245,245,220,0.1)', paddingTop: '1.5rem' }}>
             <span style={{ color: 'var(--gold)', fontSize: '0.75rem', letterSpacing: '0.2em', marginBottom: '0.5rem' }}>PANEL BARBERO</span>
             
-            <a href="/admin/citas" onClick={toggleNav} style={{ 
-              background: 'var(--cream)', 
-              color: '#000', 
-              padding: '0.8rem 1.5rem', 
-              borderRadius: '50px', 
-              fontSize: '0.85rem', 
-              fontWeight: 'bold', 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.1em', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              gap: '0.5rem',
-              width: '220px',
-              textDecoration: 'none'
-            }}>
+            <a href="/admin/citas" onClick={toggleNav} style={btnStyle}>
               <Calendar size={18} /> Mis Citas
             </a>
             
-            <a href="/admin/finanzas" onClick={toggleNav} style={{ 
-              background: 'var(--cream)', 
-              color: '#000', 
-              padding: '0.8rem 1.5rem', 
-              borderRadius: '50px', 
-              fontSize: '0.85rem', 
-              fontWeight: 'bold', 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.1em', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              gap: '0.5rem',
-              width: '220px',
-              textDecoration: 'none'
-            }}>
+            <a href="/admin/finanzas" onClick={toggleNav} style={btnStyle}>
               <DollarSign size={18} /> Finanzas
             </a>
 
+            <a href="/admin/resenas" onClick={toggleNav} style={btnStyle}>
+              <Star size={18} /> Gestionar Reseñas
+            </a>
+
             <button onClick={handleLogout} style={{ 
-              background: '#ff4444', 
-              color: '#fff', 
-              padding: '0.8rem 1.5rem', 
-              borderRadius: '50px', 
-              fontSize: '0.85rem', 
-              fontWeight: 'bold', 
-              textTransform: 'uppercase', 
-              letterSpacing: '0.1em', 
-              border: 'none', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              gap: '0.5rem', 
-              cursor: 'pointer',
-              marginTop: '0.5rem',
-              width: '220px'
+              background: '#ff4444', color: '#fff', padding: '0.8rem 1.5rem', 
+              borderRadius: '50px', fontSize: '0.85rem', fontWeight: 'bold', 
+              textTransform: 'uppercase', letterSpacing: '0.1em', border: 'none', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: '0.5rem', cursor: 'pointer', marginTop: '0.5rem', width: '220px'
             }}>
               <LogOut size={18} /> Cerrar Sesión
             </button>
           </div>
         ) : (
-          /* VISTA PÚBLICA: Aparece la opción de Iniciar Sesión */
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center', borderTop: '1px solid rgba(245,245,220,0.1)', paddingTop: '1.5rem' }}>
             <a href="/admin" onClick={toggleNav} style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--grey)' }}>
               <User size={20} /> Iniciar sesión
@@ -137,18 +92,12 @@ export default function Navbar() {
           <li style={{ marginLeft: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
             {session ? (
               <>
-                <a href="/admin/citas" style={{ color: 'var(--gold)' }} title="Mis Citas">
-                  <Calendar size={20} />
-                </a>
-                {/* NUEVO ÍCONO DE FINANZAS AQUÍ */}
-                <a href="/admin/finanzas" style={{ color: 'var(--gold)' }} title="Finanzas">
-                  <DollarSign size={20} />
-                </a>
+                <a href="/admin/citas" style={{ color: 'var(--gold)' }} title="Mis Citas"><Calendar size={20} /></a>
+                <a href="/admin/finanzas" style={{ color: 'var(--gold)' }} title="Finanzas"><DollarSign size={20} /></a>
+                <a href="/admin/resenas" style={{ color: 'var(--gold)' }} title="Gestionar Reseñas"><Star size={20} /></a>
               </>
             ) : (
-              <a href="/admin" style={{ color: 'var(--grey)', opacity: '0.6' }} title="Iniciar sesión">
-                <User size={18} />
-              </a>
+              <a href="/admin" style={{ color: 'var(--grey)', opacity: '0.6' }} title="Iniciar sesión"><User size={18} /></a>
             )}
           </li>
         </ul>
@@ -160,3 +109,11 @@ export default function Navbar() {
     </>
   );
 }
+
+const btnStyle = { 
+  background: 'var(--cream)', color: '#000', padding: '0.8rem 1.5rem', 
+  borderRadius: '50px', fontSize: '0.85rem', fontWeight: 'bold', 
+  textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', 
+  alignItems: 'center', justifyContent: 'center', gap: '0.5rem', 
+  width: '220px', textDecoration: 'none' 
+};
