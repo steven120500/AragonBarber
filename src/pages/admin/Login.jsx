@@ -31,12 +31,12 @@ export default function Login() {
   };
 
   return (
-    <div className="login-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--black)', padding: '2rem' }}>
+    <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', padding: '2rem', boxSizing: 'border-box', position: 'absolute', top: 0, left: 0 }}>
       <div className="booking-form-elegant" style={{ width: '100%', maxWidth: '400px', margin: '0' }}>
         
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 className="nav-logo" style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>
-            ARAGON<span> ADMIN</span>
+            ADMINISTRADOR<br/>DE ARAGÓN
           </h1>
           <p className="section-tag" style={{ margin: 0 }}>Acceso exclusivo</p>
         </div>
@@ -49,29 +49,31 @@ export default function Login() {
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div className="form-group" style={{ gap: '0.5rem' }}>
-            <label>Correo Electrónico</label>
+            <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }}>Correo Electrónico</label>
             <input 
               type="email" 
               placeholder="barbero@aragon.com" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              style={{ background: '#0d0d0d', border: '1px solid #333', color: 'white', padding: '12px', borderRadius: '6px' }}
             />
           </div>
 
           <div className="form-group" style={{ gap: '0.5rem' }}>
-            <label>Contraseña</label>
+            <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }}>Contraseña</label>
             <input 
               type="password" 
               placeholder="••••••••" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              style={{ background: '#0d0d0d', border: '1px solid #333', color: 'white', padding: '12px', borderRadius: '6px' }}
             />
           </div>
 
           <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '1rem' }}>
-            {loading ? 'Validando...' : 'Entrar al Sistema'}
+            {loading ? 'Validando...' : 'ENTRAR AL SISTEMA'}
           </button>
         </form>
         
