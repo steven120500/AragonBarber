@@ -47,8 +47,7 @@ nav {
   align-items: center;
   justify-content: space-between;
   padding: 1.2rem 4rem;
-  background: rgba(5,5,5,0.85);
-  backdrop-filter: blur(12px);
+  background: #000; /* Fondo negro sólido 100% opaco */
   border-bottom: 1px solid var(--border);
   transition: padding .3s;
 }
@@ -338,15 +337,18 @@ section {
 
 /* ─── AJUSTE DE ESPACIADO PARA "AGENDA TU CITA" ─── */
 #reservar {
-  padding-top: 1 !important; 
-  margin-top: -10rem; /* Ajusta este número si quieres que suba más o menos */
+  padding-top: 0 !important; /* Corregido a 0 para PC */
+  margin-top: -10rem;
   position: relative;
   z-index: 20; 
 }
 
 @media (max-width: 768px) {
   #reservar {
-    margin-top: -6rem; /* Ajuste para celulares */
+    margin-top: 2rem; 
+    padding-top: 4rem !important; 
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
 }
 
@@ -584,4 +586,15 @@ select::-ms-expand { display: none; }
   .hero-title { font-size: 2.6rem; }
   .hero-actions { flex-direction: row; flex-wrap: wrap; gap: 0.8rem; }
   .hero-btn { font-size: 0.78rem; padding: 0.75rem 1.4rem; }
+}
+
+/* ─── AJUSTE GLOBAL PARA HEADER FIJO ─── */
+.app-container {
+  padding-top: 80px; 
+}
+
+@media (max-width: 1024px) {
+  .app-container {
+    padding-top: 70px; 
+  }
 }

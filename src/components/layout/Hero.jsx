@@ -47,7 +47,7 @@ export default function Hero() {
         
         <h1 className="hero-title">
           El estilo <br />
-          <span className="accent">siempre primero</span>
+          <span className="hero-title">siempre primero</span>
         </h1>
        
         
