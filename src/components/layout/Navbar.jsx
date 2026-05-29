@@ -111,7 +111,7 @@ export default function Navbar() {
 }
 
 const navbarStyle = {
-  position: 'fixed',
+  position: 'sticky',
   top: 0,
   left: 0,
   width: '100%',
