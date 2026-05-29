@@ -202,7 +202,7 @@ export default function Navbar() {
 
 // ─── ESTILOS ───
 const navbarStyle = {
-  position: 'fixed',
+  position: 'sticky', /* 🔥 LA SOLUCIÓN DEFINITIVA CONTRA EL REBOTE DE SAFARI 🔥 */
   top: 0,
   left: 0,
   width: '100%',
@@ -215,7 +215,7 @@ const navbarStyle = {
   boxSizing: 'border-box',
   borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
   WebkitBackdropFilter: 'blur(10px)',
-  backdropFilter: 'blur(10px)',
+  backdropFilter: 'blur(10px)'
 };
 
 const btnSolidCream = {
