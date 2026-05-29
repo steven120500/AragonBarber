@@ -6,23 +6,37 @@ import emailjs from '@emailjs/browser';
 export default function BookingForm({ selectedService }) {
   const [formData, setFormData] = useState({ dia: '', hora: '', nombre: '', apellido: '', email: '', telefono: '' });
   const [listaDias, setListaDias] = useState([]);
-  const [horasOcupadas, setHorasOcupadas] = useState([]);
+  
+  // ─── AHORA GUARDAMOS LAS CITAS COMPLETAS, NO SOLO LA HORA ───
+  const [citasDelDia, setCitasDelDia] = useState([]);
   const [bloqueos, setBloqueos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // 1. OBTENER FECHA Y HORA EXACTA DE COSTA RICA
   const obtenerTiempoCR = () => {
     const crTime = new Date().toLocaleString("en-US", { timeZone: "America/Costa_Rica" });
     return new Date(crTime);
   };
 
+  // ─── DICCIONARIO DE DURACIONES (En minutos) ───
+  const obtenerDuracionMinutos = (servicio) => {
+    if (!servicio) return 60;
+    const s = servicio.toLowerCase();
+    // Si es SOLO barba, dura 30 minutos. Todo lo demás (Cortes, Combos) dura 60 minutos.
+    if (s.includes('barba') && !s.includes('corte')) return 30; 
+    return 60; 
+  };
+
+  // Convierte "15:30" a 930 minutos (facilita la matemática de colisiones)
+  const minutosDesdeMedianoche = (horaString) => {
+    if (!horaString) return 0;
+    const [h, m] = horaString.split(':').map(Number);
+    return (h * 60) + m;
+  };
+
   useEffect(() => {
-    // Generar los próximos días a partir de HOY (Hora Costa Rica) excluyendo los domingos
     const dias = [];
     const ahoraCR = obtenerTiempoCR();
-    
-    // Generamos días hasta tener 7 días laborables
     let i = 0;
     let diasAgregados = 0;
     
@@ -30,11 +44,8 @@ export default function BookingForm({ selectedService }) {
       const fechaObj = new Date(ahoraCR);
       fechaObj.setDate(fechaObj.getDate() + i);
       
-      // getDay() devuelve 0 para el domingo. Solo agregamos si NO es domingo.
       if (fechaObj.getDay() !== 0) {
         const textoDia = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-        
-        // ─── SOLUCIÓN AL BUG DEL DÍA ATRASADO: FORMATO MANUAL ───
         const year = fechaObj.getFullYear();
         const month = String(fechaObj.getMonth() + 1).padStart(2, '0');
         const day = String(fechaObj.getDate()).padStart(2, '0');
@@ -47,7 +58,6 @@ export default function BookingForm({ selectedService }) {
     }
     setListaDias(dias);
 
-    // Cargar tus horarios bloqueados y aperturas
     const fetchBloqueos = async () => {
       const { data } = await supabase.from('horarios_bloqueados').select('*');
       setBloqueos(data || []);
@@ -55,31 +65,29 @@ export default function BookingForm({ selectedService }) {
     fetchBloqueos();
   }, []);
 
-  // 2. BUSCAR CITAS OCUPADAS CUANDO SE SELECCIONA UN DÍA
+  // BUSCAR CITAS DEL DÍA SELECCIONADO
   useEffect(() => {
     if (formData.dia) {
       const fetchCitas = async () => {
-        // Solo traemos citas que NO estén canceladas
         const { data } = await supabase
           .from('citas')
-          .select('hora')
+          .select('hora, servicio') // Ocupamos saber qué servicio es para calcular su duración
           .eq('fecha', formData.dia)
           .neq('estado', 'Cancelada');
           
-        setHorasOcupadas(data ? data.map(c => c.hora.substring(0, 5)) : []);
+        setCitasDelDia(data || []);
       };
       fetchCitas();
     } else {
-      setHorasOcupadas([]);
+      setCitasDelDia([]);
     }
   }, [formData.dia]);
 
-  // 3. GENERAR HORARIOS DISPONIBLES (De 09:00 AM a 07:30 PM, intervalos de 30 min)
+  // ─── MOTOR INTELIGENTE DE HORARIOS Y COLISIONES ───
   const generarHoras = () => {
     const horas = [];
     const ahoraCR = obtenerTiempoCR();
     
-    // Obtener string exacto de HOY sin timezone shift
     const hoyYear = ahoraCR.getFullYear();
     const hoyMonth = String(ahoraCR.getMonth() + 1).padStart(2, '0');
     const hoyDay = String(ahoraCR.getDate()).padStart(2, '0');
@@ -88,44 +96,86 @@ export default function BookingForm({ selectedService }) {
     const horaActual = ahoraCR.getHours();
     const minutoActual = ahoraCR.getMinutes();
     
+    // Todos los bloques visuales son de 30 en 30
     const intervalo = 30; 
     
-    // ─── SOLUCIÓN AL BUG DEL DÍA ATRASADO: PARSEO LOCAL ESTRICTO ───
+    // ¿Cuánto dura lo que el cliente quiere agendar?
+    const duracionSolicitada = obtenerDuracionMinutos(selectedService);
+    
     let diaSeleccionadoIndex = -1;
     if (formData.dia) {
       const [y, m, d] = formData.dia.split('-');
-      // Al usar new Date(año, mes, día) se obliga a usar la zona horaria local correcta
       const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
       diaSeleccionadoIndex = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
     }
 
+    const bloqueosDelDia = bloqueos.filter(b => b.dia_semana === diaSeleccionadoIndex);
+
     for (let h = 9; h < 20; h++) {
       for (let m = 0; m < 60; m += intervalo) {
+        
         const horaStr = `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : m}`;
-        const horaDB = `${horaStr}:00`;
+        const startSolicitado = (h * 60) + m;
+        const endSolicitado = startSolicitado + duracionSolicitada; // A qué hora terminaría este servicio
         const isManana = h < 14;
 
-        const esHoy = formData.dia === hoyCRString;
-        const esHoraPasada = esHoy && (h < horaActual || (h === horaActual && m <= minutoActual));
-        
-        // Verificamos cómo está guardado en base de datos para ESE día específico
-        const bloqueosDelDia = bloqueos.filter(b => b.dia_semana === diaSeleccionadoIndex);
-        
-        const estaBloqueadoTarde = bloqueosDelDia.some(b => b.hora_inicio <= horaDB && b.hora_fin > horaDB && b.hora_inicio !== b.hora_fin);
-        const estaAbiertoManana = bloqueosDelDia.some(b => b.hora_inicio === horaDB && b.hora_fin === horaDB);
-
-        let mostrarHora = false;
-
-        // Si es de mañana, SOLO se muestra si el barbero lo abrió
-        if (isManana) {
-          if (estaAbiertoManana) mostrarHora = true;
-        } 
-        // Si es de tarde, se muestra SIEMPRE a menos que el barbero lo cerrara
-        else {
-          if (!estaBloqueadoTarde) mostrarHora = true;
+        // 1. ¿Choca con alguna CITA existente?
+        let hayChoque = false;
+        for (const cita of citasDelDia) {
+          const startCita = minutosDesdeMedianoche(cita.hora.substring(0, 5));
+          const endCita = startCita + obtenerDuracionMinutos(cita.servicio);
+          
+          // Lógica de traslape matemático
+          if (startSolicitado < endCita && endSolicitado > startCita) {
+            hayChoque = true;
+            break;
+          }
         }
 
-        if (mostrarHora && !horasOcupadas.includes(horaStr) && !esHoraPasada) {
+        // 2. ¿Choca con algún CIERRE en la tarde de tu panel?
+        if (!hayChoque && !isManana) {
+          const bloqueosTarde = bloqueosDelDia.filter(b => b.hora_inicio !== b.hora_fin);
+          for (const b of bloqueosTarde) {
+            const startBloqueo = minutosDesdeMedianoche(b.hora_inicio.substring(0, 5));
+            const endBloqueo = minutosDesdeMedianoche(b.hora_fin.substring(0, 5));
+            if (startSolicitado < endBloqueo && endSolicitado > startBloqueo) {
+              hayChoque = true;
+              break;
+            }
+          }
+        }
+
+        // 3. ¿El horario de la mañana está totalmente ABIERTO para la duración requerida?
+        let abiertoEnManana = true;
+        if (isManana) {
+          const bloquesNecesarios = duracionSolicitada / 30; // Ej: Corte necesita 2 bloques abiertos
+          for (let step = 0; step < bloquesNecesarios; step++) {
+            const checkMin = startSolicitado + (step * 30);
+            const checkH = Math.floor(checkMin / 60);
+            const checkM = checkMin % 60;
+            const checkHoraDB = `${checkH.toString().padStart(2, '0')}:${checkM === 0 ? '00' : '30'}:00`;
+            
+            const bloqueAbierto = bloqueosDelDia.some(b => b.hora_inicio === checkHoraDB && b.hora_fin === checkHoraDB);
+            if (!bloqueAbierto) {
+              abiertoEnManana = false;
+              break;
+            }
+          }
+        }
+
+        // DECISIÓN FINAL: ¿Mostramos la hora?
+        let mostrarHora = false;
+        if (isManana) {
+          if (abiertoEnManana && !hayChoque) mostrarHora = true;
+        } else {
+          if (!hayChoque) mostrarHora = true;
+        }
+
+        // Evitar que agenden en el pasado el día de hoy
+        const esHoy = formData.dia === hoyCRString;
+        const esHoraPasada = esHoy && (startSolicitado <= (horaActual * 60 + minutoActual));
+
+        if (mostrarHora && !esHoraPasada) {
           const hora12h = h > 12 ? h - 12 : h;
           const ampm = h >= 12 ? 'PM' : 'AM';
           horas.push({ valor: horaStr, texto: `${hora12h}:${m === 0 ? '00' : m} ${ampm}` });
@@ -138,7 +188,6 @@ export default function BookingForm({ selectedService }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validación de seguridad extra
     if (formData.telefono.length !== 8) {
       alert("El número de teléfono debe tener exactamente 8 dígitos.");
       return;
@@ -146,21 +195,33 @@ export default function BookingForm({ selectedService }) {
 
     setLoading(true);
 
-    // DOUBLE CHECK: Seguridad antes de insertar
+    // DOUBLE CHECK: Validamos colisiones en la base de datos por si 2 personas guardan a la vez
     const { data: checkData } = await supabase
       .from('citas')
-      .select('id')
+      .select('hora, servicio')
       .eq('fecha', formData.dia)
-      .eq('hora', formData.hora)
       .neq('estado', 'Cancelada');
 
-    if (checkData && checkData.length > 0) {
-      alert("Lo sentimos, alguien acaba de reservar este espacio. Por favor elige otro horario.");
+    const startNuevo = minutosDesdeMedianoche(formData.hora);
+    const endNuevo = startNuevo + obtenerDuracionMinutos(selectedService);
+    let choqueSimultaneo = false;
+    
+    for (const cita of (checkData || [])) {
+      const startExistente = minutosDesdeMedianoche(cita.hora.substring(0,5));
+      const endExistente = startExistente + obtenerDuracionMinutos(cita.servicio);
+      if (startNuevo < endExistente && endNuevo > startExistente) {
+        choqueSimultaneo = true; 
+        break;
+      }
+    }
+
+    if (choqueSimultaneo) {
+      alert("Lo sentimos, alguien acaba de reservar este espacio u otro servicio está chocando. Por favor elige otro horario.");
       setLoading(false);
       return;
     }
 
-    // Insertar en base de datos y obtener el registro creado
+    // Insertar cita
     const { data: citaData, error } = await supabase.from('citas').insert([{
       fecha: formData.dia, 
       hora: formData.hora, 
@@ -179,7 +240,7 @@ export default function BookingForm({ selectedService }) {
       return;
     }
 
-    // CONFIGURACIÓN DE EMAILJS
+    // ENVIAR CORREOS
     const citaId = citaData[0].id;
     const cancelLink = `${window.location.origin}/#/cancelar-cita?id=${citaId}`;
 
@@ -195,32 +256,18 @@ export default function BookingForm({ selectedService }) {
     };
 
     try {
-      // Correo al Barbero
-      await emailjs.send(
-        'service_44y34g1', 
-        'template_aw2t728', 
-        templateParams,
-        '2EEPT8Z3vdkbZzwSq' 
-      );
-
-      // Correo al Cliente
-      await emailjs.send(
-        'service_44y34g1', 
-        'template_0x2ywka', 
-        templateParams,
-        '2EEPT8Z3vdkbZzwSq' 
-      );
-      
+      await emailjs.send('service_44y34g1', 'template_aw2t728', templateParams, '2EEPT8Z3vdkbZzwSq');
+      await emailjs.send('service_44y34g1', 'template_0x2ywka', templateParams, '2EEPT8Z3vdkbZzwSq');
       setSuccess(true);
     } catch (emailError) {
-      console.error('La cita se guardó, pero falló el correo:', emailError);
+      console.error('Falló el correo:', emailError);
       setSuccess(true); 
     }
 
     setLoading(false);
   };
 
-  // 4. PANTALLA DE ÉXITO MINIMALISTA
+  // PANTALLA DE ÉXITO
   if (success) {
     return (
       <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#0a0a0a', borderRadius: '16px', border: '1px solid #222', animation: 'smoothFade 0.6s ease forwards' }}>
@@ -235,7 +282,7 @@ export default function BookingForm({ selectedService }) {
     );
   }
 
-  // 5. FORMULARIO REDISEÑADO SIN DEGRADADOS Y CON SELECTS PREMIUM
+  // FORMULARIO
   return (
     <form onSubmit={handleSubmit} style={formContainerStyle}>
       <style>{`
