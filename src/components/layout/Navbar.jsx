@@ -121,7 +121,7 @@ export default function Navbar() {
       </div>
 
       {/* PC & MOBILE NAVBAR (Asegurada al techo) - 🔥 CAMBIO CLAVE AQUÍ: Usa className en vez de style */}
-      <nav className="main-navbar">
+      <nav>
         
         {/* LOGO */}
         <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>

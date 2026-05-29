@@ -368,23 +368,19 @@ select {
 
 /* ─── NAVBAR PRINCIPAL Y ESCUDO PARA IOS ─── */
 /* ─── NAVBAR PRINCIPAL PARA IOS (MÉTODO NEGATIVE TOP) ─── */
+/* ─── NAVBAR LIMPIO Y NATIVO PARA IOS ─── */
 .main-navbar {
-  position: fixed;
-  /* 1. Subimos el Navbar 100px hacia arriba, metiéndolo a la fuerza en la barra de estado */
-  top: -100px; 
-  left: 0;
-  width: 100%;
+  position: sticky; /* Cambiamos fixed por sticky */
+  top: 0;
   z-index: 999;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  /* 2. Compensamos esos 100px hacia abajo en el padding + la zona segura + 1rem de diseño */
-  padding: calc(100px + env(safe-area-inset-top, 0px) + 1rem) 1.5rem 1rem 1.5rem;
+  /* Mantenemos solo el padding necesario para que no tape la hora */
+  padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1.5rem 1rem 1.5rem;
   background-color: #000;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transform: translateZ(0); 
 }
-
 /* EL ESCUDO: Un techo falso que tapa el Notch de Safari */
 .main-navbar::before {
   content: "";
