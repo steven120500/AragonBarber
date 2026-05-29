@@ -3,6 +3,7 @@ import { supabase } from '../../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 import { Trash2 } from 'lucide-react';
+import Nav from '../../components/layout/Navbar'; 
 
 export default function Finanzas() {
   const [activeTab, setActiveTab] = useState('balance');
@@ -48,11 +49,6 @@ export default function Finanzas() {
     setIngresos(dataIngresos || []);
     setGastos(dataGastos || []);
     setLoading(false);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/admin');
   };
 
   // ─── LÓGICA DE SEPARACIÓN (GASTOS VS RETIROS) ───
@@ -146,16 +142,13 @@ export default function Finanzas() {
   const chartDataSemanal = generarDatosSemanaActual();
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000', color: 'var(--cream)', padding: '2rem' }}>
+    <div style={{ minHeight: '100vh', background: '#000', color: 'var(--cream)', paddingBottom: '2rem' }}>
       
-      <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '3rem', borderBottom: '1px solid #222', paddingBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button onClick={() => navigate('/')} style={btnNav}>Inicio</button>
-          <button onClick={handleLogout} style={{ ...btnNav, background: '#ff4444', color: '#fff' }}>Salir</button>
-        </div>
-      </header>
+      {/* ─── NAVBAR INTEGRADO ─── */}
+      <Nav />
 
-      <main style={{ maxWidth: '1100px', margin: '0 auto' }}>
+      {/* ─── AUMENTAMOS EL paddingTop AQUÍ A 8rem PARA QUE NO PEGUE CON EL NAVBAR ─── */}
+      <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem', paddingTop: '8rem' }}>
         <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', marginBottom: '2rem', color: 'var(--gold)' }}>
           Resumen Financiero
         </h2>
@@ -369,7 +362,6 @@ export default function Finanzas() {
 }
 
 // ─── ESTILOS REUTILIZABLES PREMIUM ───
-const btnNav = { background: 'var(--cream)', color: '#000', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' };
 const cardStat = { background: '#0a0a0a', border: '1px solid #222', padding: '2rem', borderRadius: '16px', borderLeft: '4px solid #00C851', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' };
 const labelStat = { color: '#888', textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.8rem' };
 const numStat = { fontSize: '2.2rem', color: '#fff', fontFamily: 'system-ui, -apple-system, sans-serif', fontWeight: '300', letterSpacing: '-0.02em', margin: 0 };

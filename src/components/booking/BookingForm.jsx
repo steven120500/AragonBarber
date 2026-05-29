@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { CheckCircle } from 'lucide-react';
-import emailjs from '@emailjs/browser'; // 1. Importar EmailJS
+import emailjs from '@emailjs/browser'; 
 
 export default function BookingForm({ selectedService }) {
   const [formData, setFormData] = useState({ dia: '', hora: '', nombre: '', apellido: '', email: '', telefono: '' });
@@ -33,7 +33,13 @@ export default function BookingForm({ selectedService }) {
       // getDay() devuelve 0 para el domingo. Solo agregamos si NO es domingo.
       if (fechaObj.getDay() !== 0) {
         const textoDia = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-        const valorDB = fechaObj.toISOString().split('T')[0]; 
+        
+        // ─── SOLUCIÓN AL BUG DEL DÍA ATRASADO: FORMATO MANUAL ───
+        const year = fechaObj.getFullYear();
+        const month = String(fechaObj.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaObj.getDate()).padStart(2, '0');
+        const valorDB = `${year}-${month}-${day}`; 
+        
         dias.push({ texto: textoDia, valor: valorDB });
         diasAgregados++;
       }
@@ -41,7 +47,7 @@ export default function BookingForm({ selectedService }) {
     }
     setListaDias(dias);
 
-    // Cargar tus horarios bloqueados (Días libres/Cierres de Catalina)
+    // Cargar tus horarios bloqueados y aperturas
     const fetchBloqueos = async () => {
       const { data } = await supabase.from('horarios_bloqueados').select('*');
       setBloqueos(data || []);
@@ -68,39 +74,58 @@ export default function BookingForm({ selectedService }) {
     }
   }, [formData.dia]);
 
-  // 3. GENERAR HORARIOS DISPONIBLES (Lógica de tiempo pasado y choques)
+  // 3. GENERAR HORARIOS DISPONIBLES (De 09:00 AM a 07:30 PM, intervalos de 30 min)
   const generarHoras = () => {
     const horas = [];
     const ahoraCR = obtenerTiempoCR();
-    const hoyCRString = ahoraCR.toISOString().split('T')[0];
+    
+    // Obtener string exacto de HOY sin timezone shift
+    const hoyYear = ahoraCR.getFullYear();
+    const hoyMonth = String(ahoraCR.getMonth() + 1).padStart(2, '0');
+    const hoyDay = String(ahoraCR.getDate()).padStart(2, '0');
+    const hoyCRString = `${hoyYear}-${hoyMonth}-${hoyDay}`;
     
     const horaActual = ahoraCR.getHours();
     const minutoActual = ahoraCR.getMinutes();
     
-    // Intervalo de servicio (Si es barba 30 mins, si es corte 60 mins)
-    const intervalo = selectedService === 'Barba' ? 30 : 60;
+    const intervalo = 30; 
     
-    // JS getDay(): 0 es Domingo. Ajustamos para la lógica de tu base de datos si es necesario.
-    const diaSeleccionadoIndex = formData.dia ? new Date(`${formData.dia}T12:00:00`).getDay() : -1;
+    // ─── SOLUCIÓN AL BUG DEL DÍA ATRASADO: PARSEO LOCAL ESTRICTO ───
+    let diaSeleccionadoIndex = -1;
+    if (formData.dia) {
+      const [y, m, d] = formData.dia.split('-');
+      // Al usar new Date(año, mes, día) se obliga a usar la zona horaria local correcta
+      const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+      diaSeleccionadoIndex = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
+    }
 
-    for (let h = 14; h < 20; h++) {
+    for (let h = 9; h < 20; h++) {
       for (let m = 0; m < 60; m += intervalo) {
         const horaStr = `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : m}`;
-        const horaFull = `${horaStr}:00`;
+        const horaDB = `${horaStr}:00`;
+        const isManana = h < 14;
 
-        // Validar si el día seleccionado es HOY y la hora ya pasó en Costa Rica
         const esHoy = formData.dia === hoyCRString;
         const esHoraPasada = esHoy && (h < horaActual || (h === horaActual && m <= minutoActual));
         
-        // Validar si tú marcaste esa hora como "Cerrado" en tu panel
-        const estaBloqueado = bloqueos.some(b => 
-          b.dia_semana === (diaSeleccionadoIndex === 0 ? 7 : diaSeleccionadoIndex) && 
-          horaFull >= b.hora_inicio && 
-          horaFull < b.hora_fin
-        );
+        // Verificamos cómo está guardado en base de datos para ESE día específico
+        const bloqueosDelDia = bloqueos.filter(b => b.dia_semana === diaSeleccionadoIndex);
         
-        // Si no está ocupada por otra persona, no es pasada, y no está bloqueada -> Mostrar
-        if (!horasOcupadas.includes(horaStr) && !esHoraPasada && !estaBloqueado) {
+        const estaBloqueadoTarde = bloqueosDelDia.some(b => b.hora_inicio <= horaDB && b.hora_fin > horaDB && b.hora_inicio !== b.hora_fin);
+        const estaAbiertoManana = bloqueosDelDia.some(b => b.hora_inicio === horaDB && b.hora_fin === horaDB);
+
+        let mostrarHora = false;
+
+        // Si es de mañana, SOLO se muestra si el barbero lo abrió
+        if (isManana) {
+          if (estaAbiertoManana) mostrarHora = true;
+        } 
+        // Si es de tarde, se muestra SIEMPRE a menos que el barbero lo cerrara
+        else {
+          if (!estaBloqueadoTarde) mostrarHora = true;
+        }
+
+        if (mostrarHora && !horasOcupadas.includes(horaStr) && !esHoraPasada) {
           const hora12h = h > 12 ? h - 12 : h;
           const ampm = h >= 12 ? 'PM' : 'AM';
           horas.push({ valor: horaStr, texto: `${hora12h}:${m === 0 ? '00' : m} ${ampm}` });
@@ -113,7 +138,7 @@ export default function BookingForm({ selectedService }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validación de seguridad extra por si acaso
+    // Validación de seguridad extra
     if (formData.telefono.length !== 8) {
       alert("El número de teléfono debe tener exactamente 8 dígitos.");
       return;
@@ -121,7 +146,7 @@ export default function BookingForm({ selectedService }) {
 
     setLoading(true);
 
-    // DOUBLE CHECK: Seguridad antes de insertar (Evita que 2 personas guarden al mismo tiempo)
+    // DOUBLE CHECK: Seguridad antes de insertar
     const { data: checkData } = await supabase
       .from('citas')
       .select('id')
@@ -135,7 +160,7 @@ export default function BookingForm({ selectedService }) {
       return;
     }
 
-    // Insertar en base de datos y obtener el registro creado (para sacar el ID)
+    // Insertar en base de datos y obtener el registro creado
     const { data: citaData, error } = await supabase.from('citas').insert([{
       fecha: formData.dia, 
       hora: formData.hora, 
@@ -154,7 +179,7 @@ export default function BookingForm({ selectedService }) {
       return;
     }
 
-    // CONFIGURACIÓN DE EMAILJS (Añadido el /#/ para que funcione con tu Router)
+    // CONFIGURACIÓN DE EMAILJS
     const citaId = citaData[0].id;
     const cancelLink = `${window.location.origin}/#/cancelar-cita?id=${citaId}`;
 
@@ -170,26 +195,25 @@ export default function BookingForm({ selectedService }) {
     };
 
     try {
-      // Correo al Barbero (Reemplaza los IDs en MAYÚSCULAS)
+      // Correo al Barbero
       await emailjs.send(
-        'service_44y34g1', // Service ID
-        'template_aw2t728', // Template ID Barbero
+        'service_44y34g1', 
+        'template_aw2t728', 
         templateParams,
-        '2EEPT8Z3vdkbZzwSq' // Public Key
+        '2EEPT8Z3vdkbZzwSq' 
       );
 
-      // Correo al Cliente (Reemplaza los IDs en MAYÚSCULAS)
+      // Correo al Cliente
       await emailjs.send(
-        'service_44y34g1', // Service ID
-        'template_0x2ywka', // Template ID Cliente
+        'service_44y34g1', 
+        'template_0x2ywka', 
         templateParams,
-        '2EEPT8Z3vdkbZzwSq' // Public Key
+        '2EEPT8Z3vdkbZzwSq' 
       );
       
       setSuccess(true);
     } catch (emailError) {
       console.error('La cita se guardó, pero falló el correo:', emailError);
-      // Aunque el correo falle, mostramos la pantalla de éxito porque la cita SÍ se guardó
       setSuccess(true); 
     }
 
@@ -219,7 +243,6 @@ export default function BookingForm({ selectedService }) {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        /* Elimina el estilo por defecto del select y añade una flecha personalizada */
         .premium-select {
           appearance: none;
           background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
@@ -266,7 +289,6 @@ export default function BookingForm({ selectedService }) {
           style={inputElementStyle} 
           value={formData.telefono}
           onChange={e => {
-            // Reemplaza cualquier cosa que no sea un número para que el usuario no pueda escribir letras
             const soloNumeros = e.target.value.replace(/\D/g, ''); 
             setFormData({...formData, telefono: soloNumeros.slice(0, 8)});
           }} 

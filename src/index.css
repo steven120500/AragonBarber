@@ -624,3 +624,19 @@ section:nth-of-type(odd) {
     border: none !important;
     box-shadow: none !important;
 }
+
+.tu-clase-navbar {
+  position: fixed; /* O sticky, dependiendo de qué estés usando */
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 9999;
+  
+  /* 1. LA MAGIA: Le dice a Safari que extienda el color detrás del reloj/notch */
+  padding-top: env(safe-area-inset-top);
+  
+  /* 2. PREFIJO OBLIGATORIO: Si tu navbar tiene fondo borroso (blur), 
+        Safari exige el prefijo -webkit- para que no se buguee al hacer scroll */
+  -webkit-backdrop-filter: blur(10px); 
+  backdrop-filter: blur(10px);
+}

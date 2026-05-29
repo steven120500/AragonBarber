@@ -6,17 +6,19 @@ export default function CancelarCita() {
   const [searchParams] = useSearchParams();
   const citaId = searchParams.get('id');
   const navigate = useNavigate();
-  const [estado, setEstado] = useState('procesando'); // Estados: procesando, exito, error
+  
+  // Nuevos estados: cargando -> confirmando -> procesando -> exito | error
+  const [estado, setEstado] = useState('cargando'); 
 
   useEffect(() => {
-    // Si alguien entra a la página sin un ID válido en la URL
+    // Si no hay ID en la URL, error directo
     if (!citaId) {
       setEstado('error');
       return;
     }
 
-    const cancelarCitaDB = async () => {
-      // 1. Verificamos que la cita exista y no esté ya cancelada
+    const verificarCita = async () => {
+      // 1. Solo verificamos que exista, no la cancelamos todavía
       const { data: citaActual, error: errorFetch } = await supabase
         .from('citas')
         .select('estado')
@@ -29,38 +31,72 @@ export default function CancelarCita() {
       }
 
       if (citaActual.estado === 'Cancelada') {
-        // Si ya estaba cancelada, mostramos éxito de una vez
+        // Si ya estaba cancelada de antes, mostramos éxito
         setEstado('exito');
-        return;
-      }
-
-      // 2. Actualizamos el estado a 'Cancelada' en la base de datos
-      const { error: errorUpdate } = await supabase
-        .from('citas')
-        .update({ estado: 'Cancelada' })
-        .eq('id', citaId);
-
-      if (errorUpdate) {
-        setEstado('error');
       } else {
-        setEstado('exito');
+        // Si está pendiente, le preguntamos si quiere cancelar
+        setEstado('confirmando');
       }
     };
 
-    cancelarCitaDB();
+    verificarCita();
   }, [citaId]);
+
+  // Función que se ejecuta SOLO si el cliente hace clic en "Sí, cancelar"
+  const ejecutarCancelacion = async () => {
+    setEstado('procesando');
+
+    const { error: errorUpdate } = await supabase
+      .from('citas')
+      .update({ estado: 'Cancelada' })
+      .eq('id', citaId);
+
+    if (errorUpdate) {
+      setEstado('error');
+    } else {
+      setEstado('exito');
+    }
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', color: '#fff', textAlign: 'center' }}>
       <div style={{ background: '#0a0a0a', padding: '3rem', borderRadius: '12px', border: '1px solid #222', maxWidth: '500px', width: '100%', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
         
-        {estado === 'procesando' && (
+        {/* PANTALLA 1: BUSCANDO EN BASE DE DATOS */}
+        {(estado === 'cargando' || estado === 'procesando') && (
           <div style={{ animation: 'pulse 1.5s infinite' }}>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", color: 'var(--gold)', fontSize: '2rem', marginBottom: '1rem' }}>Procesando...</h2>
-            <p style={{ color: 'var(--grey)' }}>Buscando tu reserva en el sistema.</p>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", color: 'var(--gold)', fontSize: '2rem', marginBottom: '1rem' }}>
+              {estado === 'cargando' ? 'Verificando...' : 'Cancelando...'}
+            </h2>
+            <p style={{ color: 'var(--grey)' }}>
+              {estado === 'cargando' ? 'Buscando tu reserva en el sistema.' : 'Procesando tu solicitud.'}
+            </p>
           </div>
         )}
 
+        {/* PANTALLA 2: PREGUNTA DE CONFIRMACIÓN */}
+        {estado === 'confirmando' && (
+          <div style={{ animation: 'fadeInUp 0.5s ease' }}>
+             <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(212, 175, 55, 0.1)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '2rem', fontWeight: 'bold' }}>
+              ?
+            </div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#fff', fontSize: '2.2rem', margin: '0 0 1rem 0' }}>¿Cancelar tu cita?</h2>
+            <p style={{ color: 'var(--grey)', marginBottom: '2.5rem', lineHeight: '1.6', fontSize: '0.95rem' }}>
+              Estás a punto de cancelar tu reserva en Aragon Barber Studio. El espacio quedará disponible para otra persona. ¿Deseas continuar?
+            </p>
+            
+            <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
+              <button onClick={ejecutarCancelacion} style={{ background: '#ff4444', color: '#fff', padding: '1rem 2rem', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', width: '100%' }}>
+                Sí, cancelar mi cita
+              </button>
+              <button onClick={() => navigate('/')} style={{ background: 'transparent', color: 'var(--cream)', border: '1px solid #333', padding: '1rem 2rem', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', width: '100%' }}>
+                No, mantener mi espacio
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* PANTALLA 3: ÉXITO */}
         {estado === 'exito' && (
           <div style={{ animation: 'fadeInUp 0.5s ease' }}>
             <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
@@ -76,6 +112,7 @@ export default function CancelarCita() {
           </div>
         )}
 
+        {/* PANTALLA 4: ERROR DE ENLACE */}
         {estado === 'error' && (
           <div style={{ animation: 'fadeInUp 0.5s ease' }}>
             <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>

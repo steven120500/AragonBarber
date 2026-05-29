@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Star } from 'lucide-react';
+import Nav from '../../components/layout/Navbar'; // ─── NAVBAR INTEGRADO ───
 
 export default function GestionResenas() {
   const [nombre, setNombre] = useState('');
@@ -53,97 +54,99 @@ export default function GestionResenas() {
   };
 
   return (
-    <div style={{ padding: '2rem', background: '#000', minHeight: '100vh', color: 'var(--cream)' }}>
+    <div style={{ background: '#000', minHeight: '100vh', color: 'var(--cream)', paddingBottom: '4rem' }}>
       
-      {/* HEADER */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem', borderBottom: '1px solid #222', paddingBottom: '1rem', maxWidth: '1100px', margin: '0 auto 3rem auto' }}>
-        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', margin: 0, color: 'var(--gold)' }}>
+      {/* ─── NAVBAR INTEGRADO ─── */}
+      <Nav />
+
+      {/* ─── CONTENEDOR PRINCIPAL AJUSTADO PARA NO PEGAR CON EL NAVBAR ─── */}
+      <div style={{ padding: '2rem', paddingTop: '8rem', maxWidth: '1100px', margin: '0 auto' }}>
+        
+        {/* TÍTULO PRINCIPAL CENTRADO */}
+        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', marginBottom: '3rem', color: 'var(--gold)', textAlign: 'center' }}>
           Gestión de Reseñas
         </h2>
-        <button onClick={() => navigate('/')} style={btnNav}>
-          Volver al Inicio
-        </button>
-      </header>
 
-      <main style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '3rem' }}>
-        
-        {/* COLUMNA IZQUIERDA: CREAR RESEÑA */}
-        <div style={{ background: '#0a0a0a', padding: '2.5rem', borderRadius: '16px', border: '1px solid #222', height: 'fit-content', animation: 'fadeIn 0.5s ease' }}>
-          <h3 style={{ fontSize: '1.5rem', color: '#fff', marginBottom: '0.5rem', fontFamily: "'Playfair Display', serif" }}>Añadir Testimonio</h3>
-          <p style={{ color: '#666', fontSize: '0.85rem', marginBottom: '2rem' }}>Publica reseñas de clientes satisfechos para mostrarlas en la landing page.</p>
+        <main style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '3rem' }}>
           
-          <form onSubmit={guardarResena} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* COLUMNA IZQUIERDA: CREAR RESEÑA */}
+          <div style={{ background: '#0a0a0a', padding: '2.5rem', borderRadius: '16px', border: '1px solid #222', height: 'fit-content', animation: 'fadeIn 0.5s ease' }}>
+            <h3 style={{ fontSize: '1.5rem', color: '#fff', marginBottom: '0.5rem', fontFamily: "'Playfair Display', serif" }}>Añadir Testimonio</h3>
+            <p style={{ color: '#666', fontSize: '0.85rem', marginBottom: '2rem' }}>Publica reseñas de clientes satisfechos para mostrarlas en la landing page.</p>
             
-            <div style={inputGroup}>
-              <label style={labelStyle}>NOMBRE DEL CLIENTE</label>
-              <input type="text" placeholder="Ej. Carlos Mora" value={nombre} onChange={(e) => setNombre(e.target.value)} required style={inputStyle} />
-            </div>
-
-            <div style={inputGroup}>
-              <label style={labelStyle}>CALIFICACIÓN</label>
-              <div style={{ display: 'flex', gap: '0.5rem', background: '#141414', padding: '1rem', borderRadius: '8px', border: '1px solid #333' }}>
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <Star 
-                    key={num} 
-                    size={28} 
-                    onClick={() => setEstrellas(num)}
-                    style={{ 
-                      cursor: 'pointer', 
-                      color: num <= estrellas ? 'var(--gold)' : '#333',
-                      fill: num <= estrellas ? 'var(--gold)' : 'transparent',
-                      transition: 'all 0.2s ease'
-                    }} 
-                  />
-                ))}
+            <form onSubmit={guardarResena} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              <div style={inputGroup}>
+                <label style={labelStyle}>NOMBRE DEL CLIENTE</label>
+                <input type="text" placeholder="Ej. Carlos Mora" value={nombre} onChange={(e) => setNombre(e.target.value)} required style={inputStyle} />
               </div>
-            </div>
 
-            <div style={inputGroup}>
-              <label style={labelStyle}>COMENTARIO</label>
-              <textarea placeholder="Escribe lo que dijo el cliente..." value={comentario} onChange={(e) => setComentario(e.target.value)} required style={{ ...inputStyle, minHeight: '120px', resize: 'vertical' }} />
-            </div>
+              <div style={inputGroup}>
+                <label style={labelStyle}>CALIFICACIÓN</label>
+                <div style={{ display: 'flex', gap: '0.5rem', background: '#141414', padding: '1rem', borderRadius: '8px', border: '1px solid #333' }}>
+                  {[1, 2, 3, 4, 5].map((num) => (
+                    <Star 
+                      key={num} 
+                      size={28} 
+                      onClick={() => setEstrellas(num)}
+                      style={{ 
+                        cursor: 'pointer', 
+                        color: num <= estrellas ? 'var(--gold)' : '#333',
+                        fill: num <= estrellas ? 'var(--gold)' : 'transparent',
+                        transition: 'all 0.2s ease'
+                      }} 
+                    />
+                  ))}
+                </div>
+              </div>
 
-            <button type="submit" disabled={loading} style={btnSubmitGold}>
-              {loading ? 'PUBLICANDO...' : 'PUBLICAR RESEÑA'}
-            </button>
-          </form>
-        </div>
+              <div style={inputGroup}>
+                <label style={labelStyle}>COMENTARIO</label>
+                <textarea placeholder="Escribe lo que dijo el cliente..." value={comentario} onChange={(e) => setComentario(e.target.value)} required style={{ ...inputStyle, minHeight: '120px', resize: 'vertical' }} />
+              </div>
 
-        {/* COLUMNA DERECHA: LISTA DE RESEÑAS ACTIVAS */}
-        <div style={{ animation: 'fadeIn 0.5s ease' }}>
-          <h3 style={{ fontSize: '1.5rem', color: 'var(--cream)', marginBottom: '1.5rem', fontFamily: "'Playfair Display', serif" }}>
-            Reseñas Publicadas ({resenasActivas.length})
-          </h3>
+              <button type="submit" disabled={loading} style={btnSubmitGold}>
+                {loading ? 'PUBLICANDO...' : 'PUBLICAR RESEÑA'}
+              </button>
+            </form>
+          </div>
 
-          {resenasActivas.length === 0 ? (
-            <p style={{ color: '#666' }}>No hay reseñas publicadas todavía.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {resenasActivas.map(resena => (
-                <div key={resena.id} style={{ background: '#0a0a0a', border: '1px solid #222', padding: '1.5rem', borderRadius: '12px', position: 'relative' }}>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                    <div>
-                      <h4 style={{ color: '#fff', fontSize: '1.1rem', margin: '0 0 0.2rem 0' }}>{resena.cliente_nombre}</h4>
-                      <div style={{ display: 'flex', gap: '0.2rem' }}>
-                        {[...Array(resena.estrellas)].map((_, i) => <Star key={i} size={14} color="var(--gold)" fill="var(--gold)" />)}
+          {/* COLUMNA DERECHA: LISTA DE RESEÑAS ACTIVAS */}
+          <div style={{ animation: 'fadeIn 0.5s ease' }}>
+            <h3 style={{ fontSize: '1.5rem', color: 'var(--cream)', marginBottom: '1.5rem', fontFamily: "'Playfair Display', serif" }}>
+              Reseñas Publicadas ({resenasActivas.length})
+            </h3>
+
+            {resenasActivas.length === 0 ? (
+              <p style={{ color: '#666' }}>No hay reseñas publicadas todavía.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {resenasActivas.map(resena => (
+                  <div key={resena.id} style={{ background: '#0a0a0a', border: '1px solid #222', padding: '1.5rem', borderRadius: '12px', position: 'relative' }}>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                      <div>
+                        <h4 style={{ color: '#fff', fontSize: '1.1rem', margin: '0 0 0.2rem 0' }}>{resena.cliente_nombre}</h4>
+                        <div style={{ display: 'flex', gap: '0.2rem' }}>
+                          {[...Array(resena.estrellas)].map((_, i) => <Star key={i} size={14} color="var(--gold)" fill="var(--gold)" />)}
+                        </div>
                       </div>
+                      
+                      <button onClick={() => eliminarResena(resena.id)} style={{ background: 'transparent', border: 'none', color: '#ff4444', cursor: 'pointer', padding: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                        <Trash2 size={16} /> Quitar
+                      </button>
                     </div>
                     
-                    <button onClick={() => eliminarResena(resena.id)} style={{ background: 'transparent', border: 'none', color: '#ff4444', cursor: 'pointer', padding: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
-                      <Trash2 size={16} /> Quitar
-                    </button>
+                    <p style={{ color: '#aaa', fontSize: '0.95rem', lineHeight: '1.5', margin: 0, fontStyle: 'italic' }}>
+                      "{resena.comentario}"
+                    </p>
                   </div>
-                  
-                  <p style={{ color: '#aaa', fontSize: '0.95rem', lineHeight: '1.5', margin: 0, fontStyle: 'italic' }}>
-                    "{resena.comentario}"
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
 
       {/* MODAL DE ALERTA PREMIUM */}
       {modalAlerta.isOpen && (
@@ -183,7 +186,6 @@ export default function GestionResenas() {
 }
 
 // ─── ESTILOS REUTILIZABLES PREMIUM ───
-const btnNav = { background: 'var(--cream)', color: '#000', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' };
 const inputGroup = { display: 'flex', flexDirection: 'column', gap: '0.5rem' };
 const labelStyle = { color: '#888', fontSize: '0.75rem', fontWeight: 'bold', letterSpacing: '0.15em' };
 const inputStyle = { background: '#141414', border: '1px solid #333', color: 'white', padding: '1rem', borderRadius: '8px', outline: 'none', fontFamily: 'system-ui, sans-serif', width: '100%', boxSizing: 'border-box' };

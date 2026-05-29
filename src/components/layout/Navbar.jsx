@@ -58,7 +58,7 @@ export default function Navbar() {
         style={{
           position: 'fixed', top: 0, right: isNavOpen ? 0 : '-100%', width: '85%', maxWidth: '350px', height: '100dvh',
           background: '#050505', zIndex: 999, transition: 'right 0.4s cubic-bezier(0.77, 0, 0.175, 1)',
-          display: 'flex', flexDirection: 'column', padding: '2rem', borderLeft: '1px solid #222', overflowY: 'auto'
+          display: 'flex', flexDirection: 'column', padding: '2rem', paddingTop: 'calc(env(safe-area-inset-top) + 2rem)', borderLeft: '1px solid #222', overflowY: 'auto'
         }}
       >
         {/* PARTE SUPERIOR: Botón de cerrar */}
@@ -233,14 +233,17 @@ const navbarStyle = {
   top: 0,
   left: 0,
   width: '100%',
-  zIndex: 900, /* Elevado para que quede por encima de todo el resto de la página */
+  zIndex: 900, 
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  padding: '1rem 1.5rem',
+  // ─── MAGIA DE SAFARI/IOS AQUÍ ───
+  padding: 'calc(env(safe-area-inset-top) + 1rem) 1.5rem 1rem 1.5rem',
   background: '#000',
   boxSizing: 'border-box',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
+  borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+  WebkitBackdropFilter: 'blur(10px)',
+  backdropFilter: 'blur(10px)'
 };
 
 const btnSolidCream = {
