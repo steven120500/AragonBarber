@@ -22,7 +22,12 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div style={{ background: '#000', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
+    // 1. SE ELIMINÓ EL overflowX: 'hidden' QUE VOLVÍA LOCO A SAFARI
+    <div style={{ background: '#000', minHeight: '100vh', width: '100%' }}>
+      
+      {/* 2. EL PARCHE FÍSICO DEFINITIVO: Un bloque negro gigante escondido arriba de la pantalla */}
+      <div style={{ position: 'fixed', top: '-50vh', left: 0, width: '100vw', height: '50vh', backgroundColor: '#000', zIndex: 9999 }}></div>
+
       <Navbar />
 
       {/* HERO SECTION */}
