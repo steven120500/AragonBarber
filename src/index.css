@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fuentes unificadas */
+/* Fuentes unificadas (se agregaron Inter y Herr Von Muellerhoff de los estilos de servicios) */
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&family=Bebas+Neue&family=Herr+Von+Muellerhoff&family=Inter:wght@400;500&display=swap');
 
 :root {
@@ -18,18 +18,13 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { 
-  scroll-behavior: smooth; 
-  background-color: #000 !important; 
-  overscroll-behavior: none; 
-}
+html { scroll-behavior: smooth; }
 
 body {
-  background-color: #000 !important; 
+  background: var(--black);
   color: var(--cream);
   font-family: 'DM Sans', sans-serif;
   overflow-x: hidden;
-  overscroll-behavior: none; 
 }
 
 /* NOISE OVERLAY */
@@ -43,7 +38,20 @@ body::before {
   z-index: 9999;
 }
 
-/* ─── CLASES DEL NAV QUE SÍ SE USAN (El layout base se borró porque está en Navbar.jsx) ─── */
+/* ─── NAV ─── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.2rem 4rem;
+  background: #000; /* Fondo negro sólido 100% opaco */
+  border-bottom: 1px solid var(--border);
+  transition: padding .3s;
+}
+
 .nav-logo {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1.6rem;
@@ -329,7 +337,7 @@ section {
 
 /* ─── AJUSTE DE ESPACIADO PARA "AGENDA TU CITA" ─── */
 #reservar {
-  padding-top: 0 !important; 
+  padding-top: 0 !important; /* Corregido a 0 para PC */
   margin-top: -10rem;
   position: relative;
   z-index: 20; 
@@ -397,10 +405,10 @@ section {
 
 /* ─── FORMULARIO DE RESERVA ─── */
 .booking-form-elegant {
-  background-color: #000 !important; 
-  border: 1px solid #333;
-  padding: 2rem;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 3rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
   max-width: 500px;
   margin: 2rem auto;
   display: flex;
@@ -424,8 +432,8 @@ section {
 input, select {
   width: 100%;
   padding: 15px;
-  background: #111;
-  border: 1px solid #333;
+  background: #0d0d0d;
+  border: 1px solid var(--border);
   color: white;
   border-radius: 4px;
   font-family: 'Inter', sans-serif;
@@ -449,7 +457,7 @@ input:focus, select:focus {
   max-width: 500px;
 }
 
-/* Ajustes nativos de Select */
+/* Ajustes nativos de Select (Elimina el menú feo del navegador) */
 select {
   appearance: none;
   -webkit-appearance: none;
@@ -459,7 +467,7 @@ select {
   background-position: right 1rem top 50%;
   background-size: 0.65rem auto;
   padding-right: 2.5rem;
-  background-color: #111;
+  background-color: #0d0d0d;
   color: white;
   cursor: pointer;
 }
@@ -547,6 +555,11 @@ select::-ms-expand { display: none; }
 
 /* ─── RESPONSIVE MÓVIL ─── */
 @media (max-width: 1024px) {
+  nav { padding: 1.2rem 2rem; }
+  .nav-links { display: none; }
+  .hamburger { display: flex; }
+  
+  /* Hero Móvil */
   .hero { grid-template-columns: 1fr; }
   .hero-left { padding: 6rem 2rem 4rem; order: 2; }
   .hero-right { height: 400px; order: 1; }
@@ -557,8 +570,6 @@ select::-ms-expand { display: none; }
   .triptych-panel { transform: translateY(100%); }
   .triptych-set.active .triptych-panel { transform: translateY(0); }
   .triptych-overlay { background: linear-gradient(to top, var(--black) 0%, transparent 30%); }
-  
-  .app-container { padding-top: 70px; }
 }
 
 @media (max-width: 768px) {
@@ -568,6 +579,9 @@ select::-ms-expand { display: none; }
 }
 
 @media (max-width: 640px) {
+  nav { padding: 1rem 1.5rem; }
+  .nav-logo { font-size: 1.3rem; }
+  
   .hero-left { padding: 5.5rem 1.5rem 1.5rem; }
   .hero-title { font-size: 2.6rem; }
   .hero-actions { flex-direction: row; flex-wrap: wrap; gap: 0.8rem; }
@@ -577,6 +591,25 @@ select::-ms-expand { display: none; }
 /* ─── AJUSTE GLOBAL PARA HEADER FIJO ─── */
 .app-container {
   padding-top: 80px; 
+}
+
+@media (max-width: 1024px) {
+  .app-container {
+    padding-top: 70px; 
+  }
+}
+
+.booking-form-elegant {
+  background-color: #000 !important; /* Fuerza el color negro sólido */
+  border: 1px solid #333;
+  padding: 2rem;
+  border-radius: 12px;
+}
+.form-group label { color: var(--gold); }
+.form-group input, .form-group select {
+  background: #111; /* Mismo tono oscuro para los campos */
+  color: #fff;
+  border: 1px solid #333;
 }
 
 /* FORZAR FONDO TRANSPARENTE EN TODAS LAS SECCIONES */
@@ -592,13 +625,18 @@ section:nth-of-type(odd) {
     box-shadow: none !important;
 }
 
-/* Esto fuerza a Safari a NO aplicar el rebote elástico a nada */
-@supports (-webkit-touch-callout: none) {
-  body {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    overflow-y: scroll;
-    -webkit-overflow-scrolling: touch;
-  }
+.tu-clase-navbar {
+  position: fixed; /* O sticky, dependiendo de qué estés usando */
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 9999;
+  
+  /* 1. LA MAGIA: Le dice a Safari que extienda el color detrás del reloj/notch */
+  padding-top: env(safe-area-inset-top);
+  
+  /* 2. PREFIJO OBLIGATORIO: Si tu navbar tiene fondo borroso (blur), 
+        Safari exige el prefijo -webkit- para que no se buguee al hacer scroll */
+  -webkit-backdrop-filter: blur(10px); 
+  backdrop-filter: blur(10px);
 }
