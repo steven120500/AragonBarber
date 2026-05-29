@@ -21,17 +21,23 @@
   padding: 0; 
 }
 
-/* ─── BLINDAJE IOS / SAFARI ─── */
-html, body {
+/* ─── BLINDAJE IOS / SAFARI (Corregido para Desktop) ─── */
+html {
+  background-color: #000 !important;
+  scroll-behavior: smooth; /* El scroll suave va solo aquí */
+}
+
+body {
   width: 100%;
   min-height: 100vh;
-  background-color: #000 !important; /* Fuerza fondo negro siempre */
+  margin: 0;
+  padding: 0;
+  background-color: #000 !important;
   color: var(--cream);
   font-family: 'DM Sans', sans-serif;
-  overflow-x: hidden;
-  overscroll-behavior-y: none; /* Bloquea el rebote elástico */
+  overflow-x: hidden; /* Ocultar el scroll horizontal va solo en el body */
+  overscroll-behavior-y: none; /* Bloquea el rebote en celulares */
   -webkit-tap-highlight-color: transparent; 
-  scroll-behavior: smooth;
 }
 
 #root {
@@ -366,9 +372,65 @@ select {
   .hero-actions { flex-direction: row; flex-wrap: wrap; gap: 0.8rem; }
 }
 
-/* ─── NAVBAR PRINCIPAL Y ESCUDO PARA IOS ─── */
-/* ─── NAVBAR PRINCIPAL PARA IOS (MÉTODO NEGATIVE TOP) ─── */
-/* ─── NAVBAR LIMPIO Y NATIVO PARA IOS ─── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&family=Bebas+Neue&family=Herr+Von+Muellerhoff&family=Inter:wght@400;500&display=swap');
+
+:root {
+  --black: #050505;
+  --dark: #111111;
+  --card: #161616;
+  --gold: #f5f5dc;
+  --gold-light: #ffffff;
+  --cream: #f5f5dc;
+  --grey: #888888;
+  --border: rgba(245, 245, 220, 0.15);
+}
+
+*, *::before, *::after { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+}
+
+/* ─── BLINDAJE IOS / SAFARI Y SCROLL ESCRITORIO ─── */
+html {
+  background-color: #000 !important;
+  scroll-behavior: smooth; /* Funciona para anclas en toda la página */
+}
+
+body {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #000 !important; 
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  overflow-x: hidden;
+  overscroll-behavior-y: none; /* Bloquea el rebote elástico en móviles */
+  -webkit-tap-highlight-color: transparent; 
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* NOISE OVERLAY */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 9999;
+}
+
 /* ─── NAVBAR BLINDADO PARA IOS ─── */
 .main-navbar {
   position: fixed !important; 
@@ -396,6 +458,7 @@ select {
   /* Esto obliga al chip gráfico del iPhone a no mover este bloque jamás */
   transform: translate3d(0, 0, 0); 
 }
+
 /* EL ESCUDO: Un techo falso que tapa el Notch de Safari */
 .main-navbar::before {
   content: "";
@@ -406,4 +469,352 @@ select {
   height: 200px; /* Suficiente para cubrir cualquier rebote salvaje de Safari */
   background-color: #000; /* Mismo color del navbar */
   pointer-events: none;
+}
+
+/* ─── ESTILOS INTERNOS DEL NAVBAR (ESCRITORIO) ─── */
+.nav-logo {
+  font-family: 'Bebas Neue', sans-serif !important;
+  font-size: 1.8rem;
+  letter-spacing: 0.18em;
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.nav-logo span { 
+  color: var(--cream); 
+}
+
+.nav-cta {
+  background-color: var(--cream) !important;
+  color: #000 !important;
+  padding: 0.6rem 1.5rem;
+  border-radius: 4px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: bold !important;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.3s ease !important;
+}
+
+.nav-cta:hover { 
+  opacity: 0.85; 
+}
+
+
+/* ─── ANIMATIONS & UTILITIES ─── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── BOTONES GLOBALES ─── */
+.btn-primary {
+  width: 100%;
+  padding: 15px;
+  background: var(--gold);
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.3s, transform 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.85rem;
+  text-align: center;
+  text-decoration: none;
+}
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.btn-ghost {
+  color: var(--cream);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.7;
+  transition: opacity .2s;
+}
+.btn-ghost:hover { opacity: 1; }
+
+/* ─── HERO EDITORIAL Y EXPANSIVO ─── */
+.hero {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  min-height: 100vh;
+  background: var(--black);
+  overflow: hidden;
+  position: relative;
+}
+
+.hero-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8rem 4rem 6rem 6rem;
+  z-index: 10;
+  position: relative;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 2rem;
+  width: fit-content;
+  animation: fadeUp 0.8s ease both;
+}
+.hero-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(3.5rem, 6vw, 6.5rem);
+  font-weight: 900;
+  line-height: 1.05;
+  margin-bottom: 1.5rem;
+  animation: fadeUp 0.8s 0.1s ease both;
+}
+.hero-title .accent { color: var(--gold); font-style: italic; }
+
+.hero-sub {
+  font-size: 1rem;
+  color: var(--grey);
+  line-height: 1.7;
+  max-width: 400px;
+  margin-bottom: 2.5rem;
+  animation: fadeUp 0.8s 0.2s ease both;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  animation: fadeUp 0.8s 0.3s ease both;
+}
+
+/* Lógica del Triptico (Derecha) */
+.hero-right {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.triptych-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.triptych-set {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1s ease;
+}
+
+.triptych-set.active {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.triptych-panel-wrapper {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  height: 100%;
+  width: 100%;
+  z-index: 2;
+  position: relative;
+}
+
+.triptych-panel {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  transform: translateX(100%);
+  transition: transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.triptych-set.active .triptych-panel { transform: translateX(0); }
+.triptych-panel-wrapper .triptych-panel:nth-child(1) { transition-delay: 0s; }
+.triptych-panel-wrapper .triptych-panel:nth-child(2) { transition-delay: 0.2s; }
+.triptych-panel-wrapper .triptych-panel:nth-child(3) { transition-delay: 0.4s; }
+
+.triptych-overlay {
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(to right, var(--black) 0%, transparent 20%),
+    linear-gradient(to bottom, var(--black) 0%, transparent 5%),
+    linear-gradient(to top, var(--black) 0%, transparent 5%);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ─── SECCIONES GENERALES ─── */
+section { 
+  padding: 6rem 4rem; 
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.section-title { font-family: 'Playfair Display', serif; font-size: clamp(2.5rem, 5vw, 3.5rem); line-height: 1.1; margin: 1rem 0; }
+.section-sub { color: var(--grey); line-height: 1.6; max-width: 500px; }
+
+/* ─── SERVICIOS (SCRIPT CARDS) ─── */
+.service-grid-script {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  padding: 2rem 0;
+}
+
+.service-card-script {
+  position: relative;
+  padding: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  overflow: hidden;
+}
+
+.service-card-script::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  border: 2px solid transparent;
+  transition: border-color 0.4s ease;
+  pointer-events: none;
+}
+
+.service-card-script:hover::before { border-color: var(--gold); }
+.service-card-script:hover { background: rgba(197, 165, 116, 0.15); transform: translateY(-5px); }
+.service-card-script.selected { background: var(--gold); border-color: var(--gold); }
+
+.script-title {
+  font-family: 'Herr Von Muellerhoff', cursive;
+  font-size: 2.5rem;
+  color: var(--gold);
+  margin: 0;
+  transition: color 0.3s ease;
+}
+
+.service-card-script:hover .script-title { color: #fff; }
+
+.duration-script {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15rem;
+  color: var(--grey);
+  margin-top: 0.5rem;
+}
+
+/* ─── FORMULARIO DE RESERVA ─── */
+.booking-form-elegant {
+  background-color: #000 !important;
+  border: 1px solid #333;
+  padding: 3rem;
+  border-radius: 12px;
+  max-width: 500px;
+  margin: 2rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.form-group { display: flex; flex-direction: column; gap: 1rem; }
+.form-group label { font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+
+input, select {
+  width: 100%;
+  padding: 15px;
+  background: #111;
+  border: 1px solid #333;
+  color: white;
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+input:focus, select:focus { border-color: var(--gold); }
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23f5f5dc%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem top 50%;
+  background-size: 0.65rem auto;
+  padding-right: 2.5rem;
+  cursor: pointer;
+}
+
+/* ─── RESPONSIVE MÓVIL ─── */
+@media (max-width: 1024px) {
+  /* Espaciado superior para que el contenido no quede bajo el Nav fijo */
+  .app-container { padding-top: 70px; }
+  
+  .hero { grid-template-columns: 1fr; }
+  .hero-left { padding: 6rem 2rem 4rem; order: 2; }
+  .hero-right { height: 400px; order: 1; }
+  .triptych-panel-wrapper {
+    grid-template-rows: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .triptych-panel { transform: translateY(100%); }
+  .triptych-set.active .triptych-panel { transform: translateY(0); }
+  .triptych-overlay { background: linear-gradient(to top, var(--black) 0%, transparent 30%); }
+}
+
+@media (max-width: 768px) {
+  section { padding: 4rem 1.5rem; }
+  #reservar { margin-top: 2rem; padding-top: 4rem !important; }
+}
+
+@media (max-width: 640px) {
+  .hero-left { padding: 5.5rem 1.5rem 1.5rem; }
+  .hero-title { font-size: 2.6rem; }
+  .hero-actions { flex-direction: row; flex-wrap: wrap; gap: 0.8rem; }
 }
