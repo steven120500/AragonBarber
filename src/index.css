@@ -369,17 +369,32 @@ select {
 /* ─── NAVBAR PRINCIPAL Y ESCUDO PARA IOS ─── */
 /* ─── NAVBAR PRINCIPAL PARA IOS (MÉTODO NEGATIVE TOP) ─── */
 /* ─── NAVBAR LIMPIO Y NATIVO PARA IOS ─── */
+/* ─── NAVBAR BLINDADO PARA IOS ─── */
 .main-navbar {
-  position: sticky; /* Cambiamos fixed por sticky */
-  top: 0;
-  z-index: 999;
+  position: fixed !important; 
+  top: 0 !important; /* Forzamos a que empiece en el milímetro cero de la pantalla */
+  left: 0;
+  width: 100%;
+  
+  /* z-index altísimo para que ningún texto o foto pase por encima */
+  z-index: 99999 !important; 
+  
   display: flex;
   justify-content: space-between;
   align-items: center;
-  /* Mantenemos solo el padding necesario para que no tape la hora */
-  padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1.5rem 1rem 1.5rem;
-  background-color: #000;
+  
+  /* El secreto: el padding-top usa el env() para empujar el logo hacia abajo, 
+     pero el fondo negro (#000) empieza desde el top: 0 cubriendo el reloj */
+  padding-top: calc(env(safe-area-inset-top, 20px) + 1rem) !important;
+  padding-bottom: 1rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  
+  background-color: #000 !important; /* Negro absoluto y obligatorio */
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  
+  /* Esto obliga al chip gráfico del iPhone a no mover este bloque jamás */
+  transform: translate3d(0, 0, 0); 
 }
 /* EL ESCUDO: Un techo falso que tapa el Notch de Safari */
 .main-navbar::before {
