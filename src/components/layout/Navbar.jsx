@@ -229,9 +229,15 @@ export default function Navbar() {
 // ─── ESTILOS ───
 // ─── ESTILOS ───
 
+// En Navbar.jsx
+
+// ─── ESTILOS REVERTIDOS PARA UN DISEÑO LIMPIO ───
+
 const navbarStyle = {
-  // 1. Mantenemos el sticky que es más estable en iOS que fixed
-  position: 'sticky', 
+  // Mantenemos fixed o sticky (sticky es mejor para overscroll, 
+  // pero fixed también funciona si el body está bien configurado).
+  // Probemos manteniendo 'fixed' que es el que tenías originalmente.
+  position: 'fixed', 
   top: 0,
   left: 0,
   width: '100%',
@@ -239,19 +245,13 @@ const navbarStyle = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
+  // padding estándar usando safe areas, sin excesos
   padding: 'calc(env(safe-area-inset-top) + 1rem) 1.5rem 1rem 1.5rem',
   background: '#000',
   boxSizing: 'border-box',
   borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-  // 2. Quitamos temporalmente el blur porque en Safari 
-  // es lo que a veces causa la transparencia en el overscroll
-  // WebkitBackdropFilter: 'blur(10px)',
-  // backdropFilter: 'blur(10px)',
-  // 3. Forzamos a la tarjeta de video de iOS a renderizar esto primero
-  transform: 'translateZ(0)',
-  // 4. EL TRUCO ESTRELLA: Una sombra superior gigante del mismo color del fondo
-  // Esto crea una "extensión" falsa del Navbar hacia arriba, cubriendo el hueco
-  boxShadow: '0 -50vh 0 50vh #000' 
+  // transform para aceleración de hardware en iOS
+  transform: 'translateZ(0)'
 };
 
 const btnSolidCream = {
