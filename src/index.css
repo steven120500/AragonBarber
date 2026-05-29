@@ -365,3 +365,32 @@ select {
   .hero-title { font-size: 2.6rem; }
   .hero-actions { flex-direction: row; flex-wrap: wrap; gap: 0.8rem; }
 }
+
+/* ─── NAVBAR PRINCIPAL Y ESCUDO PARA IOS ─── */
+.main-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 999;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* El env() respeta la zona segura nativa, si falla usa 0px y suma 1rem */
+  padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1.5rem 1rem 1.5rem;
+  background-color: #000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transform: translateZ(0); /* Aceleración gráfica en iPhone */
+}
+
+/* EL ESCUDO: Un techo falso que tapa el Notch de Safari */
+.main-navbar::before {
+  content: "";
+  position: absolute;
+  bottom: 100%; /* Empieza exactamente donde termina el navbar y va hacia arriba */
+  left: 0;
+  width: 100%;
+  height: 200px; /* Suficiente para cubrir cualquier rebote salvaje de Safari */
+  background-color: #000; /* Mismo color del navbar */
+  pointer-events: none;
+}

@@ -71,7 +71,7 @@ export default function Navbar() {
         {/* PARTE CENTRAL: Contenido dinámico */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
           
-          {/* RESERVAR CITA PARA MÓVIL (Como lo quitamos de la barra superior, lo ponemos aquí muy visible) */}
+          {/* RESERVAR CITA PARA MÓVIL */}
           <div className="mobile-only-links" style={{ width: '100%', marginBottom: '2rem' }}>
             <button 
               onClick={() => scrollToSection('reservar')} 
@@ -120,8 +120,8 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* PC & MOBILE NAVBAR (Asegurada al techo) */}
-      <nav style={navbarStyle}>
+      {/* PC & MOBILE NAVBAR (Asegurada al techo) - 🔥 CAMBIO CLAVE AQUÍ: Usa className en vez de style */}
+      <nav className="main-navbar">
         
         {/* LOGO */}
         <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
@@ -226,33 +226,7 @@ export default function Navbar() {
   );
 }
 
-// ─── ESTILOS ───
-// ─── ESTILOS ───
-
-// En Navbar.jsx
-
-// ─── ESTILOS REVERTIDOS PARA UN DISEÑO LIMPIO ───
-
-const navbarStyle = {
-  // Mantenemos fixed o sticky (sticky es mejor para overscroll, 
-  // pero fixed también funciona si el body está bien configurado).
-  // Probemos manteniendo 'fixed' que es el que tenías originalmente.
-  position: 'fixed', 
-  top: 0,
-  left: 0,
-  width: '100%',
-  zIndex: 900, 
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  // padding estándar usando safe areas, sin excesos
-  padding: 'calc(env(safe-area-inset-top) + 1rem) 1.5rem 1rem 1.5rem',
-  background: '#000',
-  boxSizing: 'border-box',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-  // transform para aceleración de hardware en iOS
-  transform: 'translateZ(0)'
-};
+// ─── ESTILOS PARA LOS BOTONES DEL MENÚ LATERAL ───
 
 const btnSolidCream = {
   background: 'var(--cream)',
