@@ -18,15 +18,19 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; }
+html { 
+  scroll-behavior: smooth; 
+  background-color: #000 !important; /* Pinta el fondo del rebote de negro puro */
+  overscroll-behavior: none; /* Mata el rebote elástico */
+}
 
 body {
-  background: var(--black);
+  background-color: #000 !important; /* Fuerza el negro puro */
   color: var(--cream);
   font-family: 'DM Sans', sans-serif;
   overflow-x: hidden;
+  overscroll-behavior: none; /* Mata el rebote elástico */
 }
-
 /* NOISE OVERLAY */
 body::before {
   content: '';
