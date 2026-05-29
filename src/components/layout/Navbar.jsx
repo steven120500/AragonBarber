@@ -227,7 +227,6 @@ export default function Navbar() {
 }
 
 // ─── ESTILOS ───
-
 const navbarStyle = {
   position: 'fixed',
   top: 0,
@@ -237,13 +236,17 @@ const navbarStyle = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  // ─── MAGIA DE SAFARI/IOS AQUÍ ───
   padding: 'calc(env(safe-area-inset-top) + 1rem) 1.5rem 1rem 1.5rem',
   background: '#000',
   boxSizing: 'border-box',
   borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
   WebkitBackdropFilter: 'blur(10px)',
-  backdropFilter: 'blur(10px)'
+  backdropFilter: 'blur(10px)',
+  
+  // ─── MAGIA DEFINITIVA PARA SAFARI AQUÍ ───
+  boxShadow: '0 -100px 0 0 #000', 
+  transform: 'translateZ(0)', 
+  WebkitTransform: 'translateZ(0)'
 };
 
 const btnSolidCream = {
