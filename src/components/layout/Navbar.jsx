@@ -61,17 +61,13 @@ export default function Navbar() {
           display: 'flex', flexDirection: 'column', padding: '2rem', paddingTop: 'calc(env(safe-area-inset-top) + 2rem)', borderLeft: '1px solid #222', overflowY: 'auto'
         }}
       >
-        {/* PARTE SUPERIOR: Botón de cerrar */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
           <button onClick={toggleNav} style={{ background: 'none', border: 'none', color: 'var(--cream)', cursor: 'pointer' }}>
             <X size={32} />
           </button>
         </div>
         
-        {/* PARTE CENTRAL: Contenido dinámico */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-          
-          {/* RESERVAR CITA PARA MÓVIL (Como lo quitamos de la barra superior, lo ponemos aquí muy visible) */}
           <div className="mobile-only-links" style={{ width: '100%', marginBottom: '2rem' }}>
             <button 
               onClick={() => scrollToSection('reservar')} 
@@ -83,7 +79,6 @@ export default function Navbar() {
 
           <div style={{ width: '100%', height: '1px', background: '#222', marginBottom: '2.5rem' }}></div>
 
-          {/* SECCIÓN DE ADMINISTRACIÓN */}
           {session ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', width: '100%' }}>
               <div style={{ background: '#111', padding: '1rem', borderRadius: '50%', marginBottom: '0.5rem' }}>
@@ -114,47 +109,52 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* PARTE INFERIOR: Footer del menú */}
         <div style={{ textAlign: 'center', color: '#444', fontSize: '0.7rem', letterSpacing: '0.1em', marginTop: '2rem' }}>
          ARAGON BARBER STUDIO
         </div>
       </div>
 
-      {/* PC & MOBILE NAVBAR (Asegurada al techo) */}
+      {/* PC & MOBILE NAVBAR */}
       <nav style={navbarStyle}>
         
+        {/* 🔥 EL PARCHE ANTI-SAFARI PEGADO AL NAVBAR 🔥 
+            Se dibuja justo por encima del borde superior del Navbar
+            y mide 100vh (toda la pantalla) hacia arriba. 
+        */}
+        <div style={{
+          position: 'absolute',
+          bottom: '100%', 
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: '#000',
+          pointerEvents: 'none',
+          zIndex: 10
+        }} />
+
         {/* LOGO */}
-        <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          {/* LOGO MÓVIL (Imagen) */}
+        <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', position: 'relative', zIndex: 20 }}>
           <img 
             src="/Logo.png" 
             alt="Aragon Barber Studio" 
             className="mobile-logo"
             style={{ height: '60px', objectFit: 'contain' }} 
           />
-          
-          {/* LOGO ESCRITORIO (Texto) */}
           <div className="desktop-logo nav-logo" style={{ fontFamily: 'inherit', margin: 0 }}>
             ARAGON<span> BARBER</span> STUDIO
           </div>
         </a>
         
-        {/* GRUPO DERECHO: Enlaces y Hamburguesa juntos */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          
-          {/* Botones Nosotros y Reseñas (Visibles en PC y Móvil) */}
+        {/* ENLACES Y HAMBURGUESA */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative', zIndex: 20 }}>
           <button onClick={() => scrollToSection('nosotros')} className="nav-text-btn">Nosotros</button>
           <button onClick={() => scrollToSection('reseñas')} className="nav-text-btn">Reseñas</button>
-          
-          {/* Reservar Cita (Solo visible en PC, en móvil está dentro de la hamburguesa) */}
           <button onClick={() => scrollToSection('reservar')} className="nav-cta desktop-only" style={{fontFamily: 'inherit'}}>Reservar cita</button>
 
-          {/* Icono de Hamburguesa */}
           <div onClick={toggleNav} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: '0.5rem' }}>
             <Menu className="hamburguesa-icon" style={{ color: 'var(--gold)' }} />
           </div>
         </div>
-
       </nav>
 
       {/* INYECCIÓN DE ESTILOS GLOBALES */}
@@ -162,11 +162,10 @@ export default function Navbar() {
         body, html {
           margin: 0;
           padding: 0;
-          background-color: #000 !important; /* Fuerza el fondo a negro absoluto */
-          overscroll-behavior-y: none;       /* Mata el rebote en Safari y Chrome */
+          background-color: #000 !important; 
+          overscroll-behavior-y: none;       
         }
         
-        /* Botones de texto genéricos para el nav */
         .nav-text-btn {
           background: transparent;
           border: none;
@@ -180,48 +179,21 @@ export default function Navbar() {
           padding: 0;
           transition: color 0.3s ease;
         }
-        .nav-text-btn:hover {
-          color: var(--gold);
-        }
+        .nav-text-btn:hover { color: var(--gold); }
+        .hamburguesa-icon { width: 32px; height: 32px; }
 
-        /* Tamaño del icono por defecto */
-        .hamburguesa-icon {
-          width: 32px;
-          height: 32px;
-        }
-
-        /* COMPORTAMIENTO MÓVIL (Por debajo de 768px) */
         @media (max-width: 768px) {
-          .desktop-logo {
-            display: none !important;
-          }
-          .mobile-logo {
-            display: block !important;
-          }
-          .desktop-only {
-            display: none !important;
-          }
-          /* Hacemos los textos un poquito más pequeños en celular para que todo quepa a la par de la hamburguesa */
-          .nav-text-btn {
-            font-size: 0.75rem !important;
-          }
-          .hamburguesa-icon {
-            width: 28px; /* Un poquito más pequeña en celular */
-            height: 28px;
-          }
+          .desktop-logo { display: none !important; }
+          .mobile-logo { display: block !important; }
+          .desktop-only { display: none !important; }
+          .nav-text-btn { font-size: 0.75rem !important; }
+          .hamburguesa-icon { width: 28px; height: 28px; }
         }
 
-        /* COMPORTAMIENTO ESCRITORIO (Por encima de 769px) */
         @media (min-width: 769px) {
-          .desktop-logo {
-            display: block !important;
-          }
-          .mobile-logo {
-            display: none !important;
-          }
-          .mobile-only-links {
-            display: none !important;
-          }
+          .desktop-logo { display: block !important; }
+          .mobile-logo { display: none !important; }
+          .mobile-only-links { display: none !important; }
         }
       `}</style>
     </>
@@ -244,11 +216,6 @@ const navbarStyle = {
   borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
   WebkitBackdropFilter: 'blur(10px)',
   backdropFilter: 'blur(10px)',
-  
-  // ─── MAGIA DEFINITIVA PARA SAFARI AQUÍ ───
-  boxShadow: '0 -100px 0 0 #000', 
-  transform: 'translateZ(0)', 
-  WebkitTransform: 'translateZ(0)'
 };
 
 const btnSolidCream = {
