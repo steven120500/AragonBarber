@@ -162,6 +162,8 @@ export default function Navbar() {
         body, html {
           margin: 0;
           padding: 0;
+          background-color: #000 !important; /* Fuerza el fondo a negro absoluto */
+          overscroll-behavior-y: none;       /* Mata el rebote en Safari y Chrome */
         }
         
         /* Botones de texto genéricos para el nav */
