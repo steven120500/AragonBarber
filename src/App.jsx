@@ -6,7 +6,7 @@ import Footer from './components/layout/Footer';
 import Reseñas from './components/layout/Reseñas';
 import Nosotros from './components/layout/Nosotros';
 import GestionResenas from './pages/admin/GestionResenas'; 
-import CancelarCita from './pages/CancelarCita'; // <-- NUEVA IMPORTACIÓN
+import CancelarCita from './pages/CancelarCita'; 
 
 // Vistas del Administrador
 import Login from './pages/admin/Login'; 
@@ -16,9 +16,16 @@ import Finanzas from './pages/admin/Finanzas';
 
 function LandingPage() {
   return (
-    <div className="app-container">
+    <div className="app-container" style={{ background: '#000' }}>
+      
+      {/* 🔥 EL PARCHE FÍSICO ANTI-REBOTE DE SAFARI 🔥 */}
+      {/* Esta es una pared negra infinita colocada arriba del techo de la pantalla. */}
+      {/* Cuando Safari haga el efecto liga, arrastrará esto y el cliente solo verá negro. */}
+      <div style={{ position: 'fixed', top: '-100vh', left: 0, width: '100vw', height: '100vh', backgroundColor: '#000', zIndex: 9999, pointerEvents: 'none' }}></div>
+
       <Nav />
       <Hero />
+      
       <section id="reservar" className="reveal visible">
         <div className="text-center" style={{ textAlign: 'center', marginTop: '0' }}>
           <h2 className="hero-title">Agenda tu cita</h2>
