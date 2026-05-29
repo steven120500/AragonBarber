@@ -591,3 +591,14 @@ section:nth-of-type(odd) {
     border: none !important;
     box-shadow: none !important;
 }
+
+/* Esto fuerza a Safari a NO aplicar el rebote elástico a nada */
+@supports (-webkit-touch-callout: none) {
+  body {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+  }
+}
