@@ -143,10 +143,15 @@ export default function Finanzas() {
 
   const chartData = generarDatosGrafico();
 
+  // Cálculo de KPIs rápidos para el gráfico
+  const { ingresosFiltrados: ingresosPeriodo } = obtenerDatosFiltrados();
+  const totalIngresosPeriodo = ingresosPeriodo.reduce((sum, i) => sum + (i.precio || 0), 0);
+  const totalCortesPeriodo = ingresosPeriodo.length;
+  const ticketPromedio = totalCortesPeriodo > 0 ? Math.round(totalIngresosPeriodo / totalCortesPeriodo) : 0;
+
   // ─── GENERADOR DE PDF (FORZADO A MENSUAL Y SINTAXIS VITE) ───
   const generarPDF = () => {
     try {
-      // 1. Forzamos manualmente el filtro a 30 días para el PDF, sin importar el estado del gráfico
       const hoy = new Date();
       const fechaInicioMes = new Date();
       fechaInicioMes.setDate(hoy.getDate() - 30);
@@ -273,37 +278,62 @@ export default function Finanzas() {
                 </div>
 
                 {/* CONTROLES DEL GRÁFICO */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '1rem', borderTop: '1px solid #1a1a1a', paddingTop: '2rem' }}>
                   <div>
-                    <h4 style={{ color: 'var(--cream)', fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', margin: 0 }}>Rendimiento</h4>
-                    <p style={{ color: '#666', fontSize: '0.85rem', margin: 0 }}>Análisis de cortes e ingresos.</p>
+                    <h4 style={{ color: 'var(--cream)', fontFamily: "'Playfair Display', serif", fontSize: '1.6rem', margin: 0 }}>
+                      Rendimiento {rangoTiempo === 'semana' ? 'Semanal' : 'Mensual'}
+                    </h4>
+                    <p style={{ color: '#888', fontSize: '0.85rem', margin: 0 }}>Comparativa directa entre ingresos generados y cantidad de servicios.</p>
                   </div>
-                  <div style={{ display: 'flex', background: '#111', borderRadius: '8px', padding: '4px' }}>
-                    <button onClick={() => setRangoTiempo('semana')} style={{ ...btnToggle, background: rangoTiempo === 'semana' ? '#333' : 'transparent', color: rangoTiempo === 'semana' ? 'var(--gold)' : '#888' }}>7 Días</button>
-                    <button onClick={() => setRangoTiempo('mes')} style={{ ...btnToggle, background: rangoTiempo === 'mes' ? '#333' : 'transparent', color: rangoTiempo === 'mes' ? 'var(--gold)' : '#888' }}>30 Días</button>
+                  <div style={{ display: 'flex', background: '#111', borderRadius: '8px', padding: '4px', border: '1px solid #222' }}>
+                    <button onClick={() => setRangoTiempo('semana')} style={{ ...btnToggle, background: rangoTiempo === 'semana' ? '#222' : 'transparent', color: rangoTiempo === 'semana' ? 'var(--gold)' : '#666' }}>7 Días</button>
+                    <button onClick={() => setRangoTiempo('mes')} style={{ ...btnToggle, background: rangoTiempo === 'mes' ? '#222' : 'transparent', color: rangoTiempo === 'mes' ? 'var(--gold)' : '#666' }}>30 Días</button>
                   </div>
                 </div>
 
-                {/* GRÁFICO OPTIMIZADO PARA MÓVIL */}
-                <div style={{ background: '#0a0a0a', border: '1px solid #222', padding: '1.5rem 0.5rem', borderRadius: '16px', height: '400px' }}>
+                {/* MINI TARJETAS DE RESUMEN DEL PERIODO */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ background: '#111', padding: '1rem', borderRadius: '12px', border: '1px solid #1a1a1a' }}>
+                    <p style={{ fontSize: '0.75rem', color: '#888', margin: '0 0 0.3rem 0', textTransform: 'uppercase', fontWeight: 'bold' }}>Ingresos ({rangoTiempo === 'semana' ? '7d' : '30d'})</p>
+                    <p style={{ fontSize: '1.3rem', color: '#10B981', fontWeight: 'bold', margin: 0, fontFamily: 'system-ui' }}>₡{totalIngresosPeriodo.toLocaleString()}</p>
+                  </div>
+                  <div style={{ background: '#111', padding: '1rem', borderRadius: '12px', border: '1px solid #1a1a1a' }}>
+                    <p style={{ fontSize: '0.75rem', color: '#888', margin: '0 0 0.3rem 0', textTransform: 'uppercase', fontWeight: 'bold' }}>Cortes Realizados</p>
+                    <p style={{ fontSize: '1.3rem', color: 'var(--gold)', fontWeight: 'bold', margin: 0, fontFamily: 'system-ui' }}>{totalCortesPeriodo} <span style={{fontSize: '0.8rem', color: '#666', fontWeight: 'normal'}}>servicios</span></p>
+                  </div>
+                  <div style={{ background: '#111', padding: '1rem', borderRadius: '12px', border: '1px solid #1a1a1a' }}>
+                    <p style={{ fontSize: '0.75rem', color: '#888', margin: '0 0 0.3rem 0', textTransform: 'uppercase', fontWeight: 'bold' }}>Ticket Promedio</p>
+                    <p style={{ fontSize: '1.3rem', color: '#fff', fontWeight: 'bold', margin: 0, fontFamily: 'system-ui' }}>₡{ticketPromedio.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {/* GRÁFICO INTUITIVO Y ORDENADO */}
+                <div style={{ background: '#0a0a0a', border: '1px solid #1f1f1f', padding: '1.5rem 1rem 1rem 0', borderRadius: '16px', height: '420px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={chartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                      {/* Ejes con fuentes pequeñas y tickMargin ajustado para móvil */}
-                      <XAxis dataKey="etiqueta" stroke="#888" fontSize={10} tickMargin={8} axisLine={false} tickLine={false} />
-                      <YAxis yAxisId="left" stroke="#888" fontSize={10} axisLine={false} tickLine={false} tickFormatter={(value) => `₡${value/1000}k`} />
-                      {/* Se oculta el eje derecho en pantallas muy chicas automáticamente por ResponsiveContainer si no cabe, pero le damos ancho fijo */}
-                      <YAxis yAxisId="right" orientation="right" stroke="#888" fontSize={10} axisLine={false} tickLine={false} width={30} />
+                    <ComposedChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
+                      
+                      <XAxis dataKey="etiqueta" stroke="#666" fontSize={11} tickMargin={12} axisLine={{ stroke: '#222' }} tickLine={false} />
+                      
+                      {/* Eje Izquierdo: Dinero */}
+                      <YAxis yAxisId="left" stroke="#10B981" fontSize={11} axisLine={false} tickLine={false} tickFormatter={(value) => `₡${value/1000}k`} />
+                      
+                      {/* Eje Derecho: Cortes */}
+                      <YAxis yAxisId="right" orientation="right" stroke="var(--gold)" fontSize={11} axisLine={false} tickLine={false} allowDecimals={false} />
                       
                       <Tooltip 
-                        contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontSize: '0.8rem' }} 
-                        itemStyle={{ fontFamily: 'system-ui, sans-serif' }}
-                        formatter={(value, name) => [name === 'ingresos' ? `₡${value.toLocaleString()}` : value, name === 'ingresos' ? 'Ingresos' : 'Cortes']}
+                        contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: '12px', color: '#fff', padding: '10px 14px', boxShadow: '0 8px 20px rgba(0,0,0,0.8)' }}
+                        labelStyle={{ color: 'var(--gold)', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #222', paddingBottom: '4px' }}
+                        formatter={(value, name) => [
+                          name === 'Ingresos' ? `₡${value.toLocaleString()}` : `${value} servicios`, 
+                          name
+                        ]}
                       />
-                      <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '0.8rem' }} />
                       
-                      <Bar yAxisId="left" dataKey="ingresos" name="Ingresos (₡)" fill="#00C851" radius={[4, 4, 0, 0]} barSize={rangoTiempo === 'semana' ? 25 : 40} />
-                      <Line yAxisId="right" type="monotone" dataKey="cortes" name="Nº Cortes" stroke="var(--gold)" strokeWidth={3} dot={{ r: 4, fill: 'var(--gold)', stroke: '#000', strokeWidth: 2 }} />
+                      <Legend wrapperStyle={{ paddingTop: '15px', fontSize: '0.85rem' }} />
+                      
+                      <Bar yAxisId="left" dataKey="ingresos" name="Ingresos" fill="#10B981" radius={[6, 6, 0, 0]} barSize={rangoTiempo === 'semana' ? 32 : 45} fillOpacity={0.85} />
+                      <Line yAxisId="right" type="monotone" dataKey="cortes" name="Nº Cortes" stroke="var(--gold)" strokeWidth={3} dot={{ r: 5, fill: '#000', stroke: 'var(--gold)', strokeWidth: 2 }} activeDot={{ r: 7, fill: 'var(--gold)' }} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
@@ -389,7 +419,7 @@ export default function Finanzas() {
         )}
       </main>
 
-      {/* ─── MODALES (Se mantienen igual pero con estilos responsive) ─── */}
+      {/* ─── MODALES ─── */}
       {modalRetiro && (
         <div style={overlayStyle}>
           <div style={modalStyle}>

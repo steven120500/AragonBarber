@@ -7,7 +7,7 @@ export default function BookingForm({ selectedService }) {
   const [formData, setFormData] = useState({ dia: '', hora: '', nombre: '', apellido: '', email: '', telefono: '' });
   const [listaDias, setListaDias] = useState([]);
   
-  // ─── AHORA GUARDAMOS LAS CITAS COMPLETAS, NO SOLO LA HORA ───
+  // ─── GUARDAMOS LAS CITAS COMPLETAS PARA CALCULAR COLISIONES ───
   const [citasDelDia, setCitasDelDia] = useState([]);
   const [bloqueos, setBloqueos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -71,7 +71,7 @@ export default function BookingForm({ selectedService }) {
       const fetchCitas = async () => {
         const { data } = await supabase
           .from('citas')
-          .select('hora, servicio') // Ocupamos saber qué servicio es para calcular su duración
+          .select('hora, servicio') 
           .eq('fecha', formData.dia)
           .neq('estado', 'Cancelada');
           
@@ -82,6 +82,28 @@ export default function BookingForm({ selectedService }) {
       setCitasDelDia([]);
     }
   }, [formData.dia]);
+
+  // ─── NUEVO: AUTOCOMPLETAR DATOS DE CLIENTES FRECUENTES POR TELÉFONO ───
+  const buscarClientePorTelefono = async (telefonoIngresado) => {
+    if (telefonoIngresado.length === 8) {
+      const { data } = await supabase
+        .from('citas')
+        .select('cliente_nombre, apellido, email')
+        .eq('telefono', telefonoIngresado)
+        .order('id', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data) {
+        setFormData(prev => ({
+          ...prev,
+          nombre: prev.nombre || data.cliente_nombre || '',
+          apellido: prev.apellido || data.apellido || '',
+          email: prev.email || data.email || ''
+        }));
+      }
+    }
+  };
 
   // ─── MOTOR INTELIGENTE DE HORARIOS Y COLISIONES ───
   const generarHoras = () => {
@@ -96,10 +118,7 @@ export default function BookingForm({ selectedService }) {
     const horaActual = ahoraCR.getHours();
     const minutoActual = ahoraCR.getMinutes();
     
-    // Todos los bloques visuales son de 30 en 30
     const intervalo = 30; 
-    
-    // ¿Cuánto dura lo que el cliente quiere agendar?
     const duracionSolicitada = obtenerDuracionMinutos(selectedService);
     
     let diaSeleccionadoIndex = -1;
@@ -116,7 +135,7 @@ export default function BookingForm({ selectedService }) {
         
         const horaStr = `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : m}`;
         const startSolicitado = (h * 60) + m;
-        const endSolicitado = startSolicitado + duracionSolicitada; // A qué hora terminaría este servicio
+        const endSolicitado = startSolicitado + duracionSolicitada; 
         const isManana = h < 14;
 
         // 1. ¿Choca con alguna CITA existente?
@@ -125,7 +144,6 @@ export default function BookingForm({ selectedService }) {
           const startCita = minutosDesdeMedianoche(cita.hora.substring(0, 5));
           const endCita = startCita + obtenerDuracionMinutos(cita.servicio);
           
-          // Lógica de traslape matemático
           if (startSolicitado < endCita && endSolicitado > startCita) {
             hayChoque = true;
             break;
@@ -148,7 +166,7 @@ export default function BookingForm({ selectedService }) {
         // 3. ¿El horario de la mañana está totalmente ABIERTO para la duración requerida?
         let abiertoEnManana = true;
         if (isManana) {
-          const bloquesNecesarios = duracionSolicitada / 30; // Ej: Corte necesita 2 bloques abiertos
+          const bloquesNecesarios = duracionSolicitada / 30; 
           for (let step = 0; step < bloquesNecesarios; step++) {
             const checkMin = startSolicitado + (step * 30);
             const checkH = Math.floor(checkMin / 60);
@@ -282,7 +300,7 @@ export default function BookingForm({ selectedService }) {
     );
   }
 
-  // FORMULARIO
+  // FORMULARIO CON EL TELÉFONO DE PRIMERO Y CAMPOS CONTROLADOS
   return (
     <form onSubmit={handleSubmit} style={formContainerStyle}>
       <style>{`
@@ -301,30 +319,21 @@ export default function BookingForm({ selectedService }) {
 
       <div style={inputGroupStyle}>
         <label style={labelStyle}>DÍA</label>
-        <select className="premium-select" style={inputElementStyle} onChange={(e) => setFormData({...formData, dia: e.target.value, hora: ''})} required>
-          <option value="" disabled selected>Selecciona un día</option>
+        <select className="premium-select" style={inputElementStyle} value={formData.dia} onChange={(e) => setFormData({...formData, dia: e.target.value, hora: ''})} required>
+          <option value="" disabled>Selecciona un día</option>
           {listaDias.map(dia => <option key={dia.valor} value={dia.valor}>{dia.texto}</option>)}
         </select>
       </div>
 
       <div style={inputGroupStyle}>
         <label style={labelStyle}>HORA</label>
-        <select className="premium-select" style={inputElementStyle} onChange={(e) => setFormData({...formData, hora: e.target.value})} required disabled={!formData.dia}>
-          <option value="" disabled selected>{formData.dia ? "Selecciona una hora" : "Primero selecciona un día"}</option>
+        <select className="premium-select" style={inputElementStyle} value={formData.hora} onChange={(e) => setFormData({...formData, hora: e.target.value})} required disabled={!formData.dia}>
+          <option value="" disabled>{formData.dia ? "Selecciona una hora" : "Primero selecciona un día"}</option>
           {generarHoras().map(h => <option key={h.valor} value={h.valor}>{h.texto}</option>)}
         </select>
       </div>
 
-      <div style={inputGroupStyle}>
-        <label style={labelStyle}>NOMBRE</label>
-        <input type="text" placeholder="Ej. Daniel" style={inputElementStyle} onChange={e => setFormData({...formData, nombre: e.target.value})} required />
-      </div>
-
-      <div style={inputGroupStyle}>
-        <label style={labelStyle}>APELLIDO</label>
-        <input type="text" placeholder="Ej. Aragón" style={inputElementStyle} onChange={e => setFormData({...formData, apellido: e.target.value})} required />
-      </div>
-
+      {/* ─── TELÉFONO PRIMERO (Con Autocompletado Inteligente) ─── */}
       <div style={inputGroupStyle}>
         <label style={labelStyle}>TELÉFONO</label>
         <input 
@@ -336,16 +345,48 @@ export default function BookingForm({ selectedService }) {
           style={inputElementStyle} 
           value={formData.telefono}
           onChange={e => {
-            const soloNumeros = e.target.value.replace(/\D/g, ''); 
-            setFormData({...formData, telefono: soloNumeros.slice(0, 8)});
+            const soloNumeros = e.target.value.replace(/\D/g, '').slice(0, 8); 
+            setFormData({...formData, telefono: soloNumeros});
+            buscarClientePorTelefono(soloNumeros);
           }} 
           required 
         />
       </div>
 
       <div style={inputGroupStyle}>
+        <label style={labelStyle}>NOMBRE</label>
+        <input 
+          type="text" 
+          placeholder="Ej. Daniel" 
+          style={inputElementStyle} 
+          value={formData.nombre}
+          onChange={e => setFormData({...formData, nombre: e.target.value})} 
+          required 
+        />
+      </div>
+
+      <div style={inputGroupStyle}>
+        <label style={labelStyle}>APELLIDO</label>
+        <input 
+          type="text" 
+          placeholder="Ej. Aragón" 
+          style={inputElementStyle} 
+          value={formData.apellido}
+          onChange={e => setFormData({...formData, apellido: e.target.value})} 
+          required 
+        />
+      </div>
+
+      <div style={inputGroupStyle}>
         <label style={labelStyle}>CORREO ELECTRÓNICO</label>
-        <input type="email" placeholder="tucorreo@ejemplo.com" style={inputElementStyle} onChange={e => setFormData({...formData, email: e.target.value})} required />
+        <input 
+          type="email" 
+          placeholder="tucorreo@ejemplo.com" 
+          style={inputElementStyle} 
+          value={formData.email}
+          onChange={e => setFormData({...formData, email: e.target.value})} 
+          required 
+        />
       </div>
 
       <button type="submit" disabled={loading} style={submitBtnStyle}>
