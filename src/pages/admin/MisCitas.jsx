@@ -11,7 +11,7 @@ export default function MisCitas() {
 
   const [isModalPagoOpen, setIsModalPagoOpen] = useState(false);
   const [citaActiva, setCitaActiva] = useState(null);
-  const [precioEditable, setPrecioEditable] = useState(0); // NUEVO ESTADO PARA EL PRECIO
+  const [precioEditable, setPrecioEditable] = useState(0); 
   
   const [isModalCancelOpen, setIsModalCancelOpen] = useState(false);
   const [citaToCancel, setCitaToCancel] = useState(null);
@@ -144,7 +144,6 @@ export default function MisCitas() {
 
   const procesarPago = async (e) => {
     e.preventDefault();
-    // Guardamos usando el precio modificado en el input
     const { error } = await supabase.from('citas').update({ 
       estado: 'Completada', 
       precio: parseInt(precioEditable) || 0 
@@ -165,11 +164,35 @@ export default function MisCitas() {
     if (!error) { setIsModalCancelOpen(false); setCitaToCancel(null); cargarDatos(); }
   };
 
-  // Función para abrir modal de cobro y pre-cargar el precio
   const iniciarCobro = (cita) => {
     setCitaActiva(cita);
     setPrecioEditable(obtenerPrecioFijo(cita.servicio));
     setIsModalPagoOpen(true);
+  };
+
+  // ─── RECORDATORIO POR WHATSAPP CON "HOY" Y LINK DE WAZE ───
+  const enviarRecordatorioWhatsApp = (cita) => {
+    const horaTexto = formato12h(cita.hora.substring(0, 5));
+    const direccionWaze = "Usa Waze para llegar a C/ Bajo Reyner:\nhttps://waze.com/ul/hd1u135x3h"; 
+    
+    const mensaje = `Hola ${cita.cliente_nombre}, te saludamos de Aragon Barber Studio. 💈\n\nTe escribimos para recordarte tu cita *hoy* a las *${horaTexto}* para tu servicio de *${cita.servicio}*.\n\n📍 *Ubicación:*\n${direccionWaze}\n\n¡Te esperamos! Por favor avísanos si necesitas reprogramar.`;
+    
+    // Limpiamos el número de teléfono por si tiene espacios o guiones
+    const telefonoLimpio = cita.telefono ? cita.telefono.replace(/\D/g, '') : '';
+    
+    // Si tiene un número válido de Costa Rica (8 dígitos), abrimos WhatsApp directo
+    if (telefonoLimpio.length === 8 || telefonoLimpio.length === 11) {
+      const numeroConCodigo = telefonoLimpio.length === 8 ? `506${telefonoLimpio}` : telefonoLimpio;
+      const urlWhatsApp = `https://api.whatsapp.com/send?phone=${numeroConCodigo}&text=${encodeURIComponent(mensaje)}`;
+      window.open(urlWhatsApp, '_blank');
+    } else {
+      // Si el número no está guardado o es inválido, solo copiamos al portapapeles
+      navigator.clipboard.writeText(mensaje);
+      setModalAlerta({ 
+        isOpen: true, 
+        mensaje: 'Se ha copiado el mensaje de recordatorio al portapapeles. ¡Ahora puedes pegarlo en el chat del cliente!' 
+      });
+    }
   };
 
   return (
@@ -253,17 +276,33 @@ export default function MisCitas() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
               {citas.map((cita) => (
-                <div key={cita.id} style={{ background: '#111', border: '1px solid #222', padding: '1.5rem', borderRadius: '12px', borderLeft: '4px solid var(--gold)', boxShadow: '0 8px 30px rgba(0,0,0,0.3)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{cita.fecha}</span>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formato12h(cita.hora.substring(0, 5))}</span>
+                <div key={cita.id} style={{ background: '#111', border: '1px solid #222', padding: '1.5rem', borderRadius: '12px', borderLeft: '4px solid var(--gold)', boxShadow: '0 8px 30px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', justifyItems: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{cita.fecha}</span>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formato12h(cita.hora.substring(0, 5))}</span>
+                    </div>
+                    <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', textTransform: 'capitalize' }}>{cita.cliente_nombre} {cita.apellido}</h3>
+                    <p style={{ color: 'var(--grey)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Servicio: <span style={{ color: 'var(--cream)', fontWeight: 'bold' }}>{cita.servicio}</span></p>
                   </div>
-                  <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', textTransform: 'capitalize' }}>{cita.cliente_nombre} {cita.apellido}</h3>
-                  <p style={{ color: 'var(--grey)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Servicio: <span style={{ color: 'var(--cream)', fontWeight: 'bold' }}>{cita.servicio}</span></p>
-                  <div style={{ display: 'flex', gap: '0.8rem', borderTop: '1px solid #222', paddingTop: '1.5rem' }}>
-                    <button onClick={() => { setCitaToCancel(cita); setIsModalCancelOpen(true); }} style={btnCancel}>Cancelar</button>
-                    <button onClick={() => iniciarCobro(cita)} style={btnCobrar}>Cobrar</button>
+
+                  {/* ─── BOTONES DE ACCIÓN EN LA TARJETA ─── */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', borderTop: '1px solid #222', paddingTop: '1.2rem', marginTop: 'auto' }}>
+                    {/* BOTÓN WHATSAPP */}
+                    <button 
+                      onClick={() => enviarRecordatorioWhatsApp(cita)} 
+                      style={btnWhatsApp}
+                      title="Abrir chat con mensaje de recordatorio listo"
+                    >
+                      📲 Recordar por WhatsApp
+                    </button>
+
+                    <div style={{ display: 'flex', gap: '0.8rem' }}>
+                      <button onClick={() => { setCitaToCancel(cita); setIsModalCancelOpen(true); }} style={btnCancel}>Cancelar</button>
+                      <button onClick={() => iniciarCobro(cita)} style={btnCobrar}>Cobrar</button>
+                    </div>
                   </div>
+
                 </div>
               ))}
             </div>
@@ -369,6 +408,7 @@ const thStyle = { border: '1px solid #222', padding: '12px', color: 'var(--gold)
 const tdStyle = { border: '1px solid #222', padding: '10px', textAlign: 'center', height: '45px', verticalAlign: 'middle', transition: 'background 0.2s ease', fontSize: '0.85rem' };
 const btnCancel = { flex: 1, background: 'rgba(255, 68, 68, 0.05)', border: '1px solid rgba(255,68,68,0.5)', color: '#ff4444', padding: '0.8rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' };
 const btnCobrar = { flex: 1, background: '#00C851', border: 'none', color: '#000', padding: '0.8rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' };
+const btnWhatsApp = { width: '100%', background: '#25D366', border: 'none', color: '#000', padding: '0.7rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'opacity 0.2s' };
 const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
 const modalStyle = { background: '#0a0a0a', border: '1px solid #222', padding: '2.5rem', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' };
 const iconWarningStyle = { width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '1.8rem' };
