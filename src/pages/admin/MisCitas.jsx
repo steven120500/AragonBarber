@@ -173,7 +173,7 @@ export default function MisCitas() {
   // ─── RECORDATORIO POR WHATSAPP CON "HOY" Y LINK DE WAZE ───
   const enviarRecordatorioWhatsApp = (cita) => {
     const horaTexto = formato12h(cita.hora.substring(0, 5));
-    const direccionWaze = "Usa Waze para llegar a C/ Bajo Reyner:\nhttps://waze.com/ul/hd1u135x3h"; 
+    const direccionWaze = "\nhttps://waze.com/ul/hd1u135x3h"; 
     
     const mensaje = `Hola ${cita.cliente_nombre}, te saludamos de Aragon Barber Studio. 💈\n\nTe escribimos para recordarte tu cita *hoy* a las *${horaTexto}* para tu servicio de *${cita.servicio}*.\n\n📍 *Ubicación:*\n${direccionWaze}\n\n¡Te esperamos! Por favor avísanos si necesitas reprogramar.`;
     
