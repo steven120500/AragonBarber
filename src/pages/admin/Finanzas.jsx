@@ -301,10 +301,7 @@ export default function Finanzas() {
                     <p style={{ fontSize: '0.75rem', color: '#888', margin: '0 0 0.3rem 0', textTransform: 'uppercase', fontWeight: 'bold' }}>Cortes Realizados</p>
                     <p style={{ fontSize: '1.3rem', color: 'var(--gold)', fontWeight: 'bold', margin: 0, fontFamily: 'system-ui' }}>{totalCortesPeriodo} <span style={{fontSize: '0.8rem', color: '#666', fontWeight: 'normal'}}>servicios</span></p>
                   </div>
-                  <div style={{ background: '#111', padding: '1rem', borderRadius: '12px', border: '1px solid #1a1a1a' }}>
-                    <p style={{ fontSize: '0.75rem', color: '#888', margin: '0 0 0.3rem 0', textTransform: 'uppercase', fontWeight: 'bold' }}>Ticket Promedio</p>
-                    <p style={{ fontSize: '1.3rem', color: '#fff', fontWeight: 'bold', margin: 0, fontFamily: 'system-ui' }}>₡{ticketPromedio.toLocaleString()}</p>
-                  </div>
+                  
                 </div>
 
                 {/* GRÁFICO INTUITIVO Y ORDENADO */}
