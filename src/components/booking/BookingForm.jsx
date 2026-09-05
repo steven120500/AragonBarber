@@ -130,7 +130,7 @@ export default function BookingForm({ selectedService }) {
 
     const bloqueosDelDia = bloqueos.filter(b => b.dia_semana === diaSeleccionadoIndex);
 
-    for (let h = 9; h < 20; h++) {
+    for (let h = 8; h < 20; h++) {
       for (let m = 0; m < 60; m += intervalo) {
         
         const horaStr = `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : m}`;

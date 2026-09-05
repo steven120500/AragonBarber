@@ -27,7 +27,7 @@ export default function MisCitas() {
   // ─── HORARIO DE 09:00 AM A 07:30 PM ───
   const bloquesHorarios = (() => {
     const bloques = [];
-    for (let h = 9; h < 20; h++) { 
+    for (let h = 8; h < 20; h++) { 
       const horaStr = h.toString().padStart(2, '0');
       bloques.push(`${horaStr}:00`);
       bloques.push(`${horaStr}:30`);
