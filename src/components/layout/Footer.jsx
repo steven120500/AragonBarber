@@ -41,7 +41,7 @@ export default function Footer() {
         <div className="footer-bottom" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center', fontSize: '0.7rem', color: '#666', letterSpacing: '0.1em' }}>
           <p style={{ margin: 0 }}>© 2026 ARAGON BARBER STUDIO. TODOS LOS DERECHOS RESERVADOS.</p>
           <p style={{ margin: 0 }}>
-            DESARROLLADO POR <a href="https://wa.me/50688028216" target="_blank" rel="noopener noreferrer" className="dev-link">STEVEN CORRALES ALFARO</a>
+            DESARROLLADO POR <a href="https://wa.me/50688028216" target="_blank" rel="noopener noreferrer" className="dev-link">Beesoft</a>
           </p>
         </div>
       </div>
