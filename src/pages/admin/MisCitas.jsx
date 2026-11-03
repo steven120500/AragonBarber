@@ -20,6 +20,101 @@ export default function MisCitas() {
   const [modalDesbloqueo, setModalDesbloqueo] = useState({ isOpen: false, id: null, dia: '', hora: '', tipo: '' });
 
   const [seleccion, setSeleccion] = useState({});
+
+  const obtenerPrecioFijo = (servicio) => {
+    if (!servicio) return 4000;
+    const serv = servicio.toLowerCase();
+    if (serv.includes('corte y barba') || serv.includes('combo')) return 6000;
+    if (serv.includes('barba')) return 2000;
+    if (serv.includes('corte')) return 4000;
+    return 4000;
+  };
+
+  // ─── ESTADOS PARA PLAN MENSUAL / CITAS FIJAS ───
+  const [isModalFijaOpen, setIsModalFijaOpen] = useState(false);
+  const [guardandoFijas, setGuardandoFijas] = useState(false);
+  const [formFija, setFormFija] = useState(() => {
+    const hoy = new Date();
+    return {
+      cliente_nombre: '',
+      telefono: '',
+      mes: `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`,
+      diaSemana: 2, // 1 = Lunes, 2 = Martes, ..., 6 = Sábado
+      hora: '15:00'
+    };
+  });
+  const [fechasMes, setFechasMes] = useState([]);
+
+  // Calcular automáticamente las fechas del mes (1er martes, 2do martes, etc.)
+  useEffect(() => {
+    if (!formFija.mes || typeof formFija.mes !== 'string') return;
+    const [year, month] = formFija.mes.split('-').map(Number);
+    const numDia = Number(formFija.diaSemana); // 1 (Lun) a 6 (Sáb)
+
+    const fechasCalculadas = [];
+    const fechaCursor = new Date(year, month - 1, 1);
+    const ordinales = ['Primer', 'Segundo', 'Tercer', 'Cuarto', 'Quinto'];
+    const serviciosDefault = ['Corte y Barba', 'Corte', 'Corte y Barba', 'Corte', 'Corte'];
+
+    let index = 0;
+    while (fechaCursor.getMonth() === month - 1) {
+      if (fechaCursor.getDay() === numDia) {
+        const y = fechaCursor.getFullYear();
+        const m = String(fechaCursor.getMonth() + 1).padStart(2, '0');
+        const d = String(fechaCursor.getDate()).padStart(2, '0');
+        fechasCalculadas.push({
+          fecha: `${y}-${m}-${d}`,
+          etiqueta: `${ordinales[index] || 'Quinto'}`,
+          servicio: serviciosDefault[index] || 'Corte'
+        });
+        index++;
+      }
+      fechaCursor.setDate(fechaCursor.getDate() + 1);
+    }
+    setFechasMes(fechasCalculadas);
+  }, [formFija.mes, formFija.diaSemana]);
+
+  const cambiarServicioFecha = (idx, nuevoServicio) => {
+    setFechasMes(prev => prev.map((item, i) => i === idx ? { ...item, servicio: nuevoServicio } : item));
+  };
+
+  const guardarCitasFijas = async (e) => {
+    e.preventDefault();
+    if (!formFija.cliente_nombre.trim()) {
+      setModalAlerta({ isOpen: true, mensaje: 'Por favor ingresa el nombre del cliente.' });
+      return;
+    }
+
+    const citasParaAgendar = fechasMes.filter(f => f.servicio !== 'ninguno');
+    if (citasParaAgendar.length === 0) {
+      setModalAlerta({ isOpen: true, mensaje: 'Debes dejar al menos una semana con servicio activo.' });
+      return;
+    }
+
+    setGuardandoFijas(true);
+    const nuevasCitas = citasParaAgendar.map(f => ({
+      cliente_nombre: formFija.cliente_nombre.trim(),
+      apellido: '',
+      telefono: formFija.telefono.trim(),
+      fecha: f.fecha,
+      hora: `${formFija.hora}:00`,
+      servicio: f.servicio,
+      precio: obtenerPrecioFijo(f.servicio),
+      estado: 'pendiente'
+    }));
+
+    const { error } = await supabase.from('citas').insert(nuevasCitas);
+    setGuardandoFijas(false);
+
+    if (error) {
+      setModalAlerta({ isOpen: true, mensaje: 'Hubo un error al guardar las citas: ' + error.message });
+    } else {
+      setIsModalFijaOpen(false);
+      setFormFija(prev => ({ ...prev, cliente_nombre: '', telefono: '' }));
+      cargarDatos();
+      setModalAlerta({ isOpen: true, mensaje: `¡Se agendaron ${nuevasCitas.length} citas fijas para ${formFija.cliente_nombre} con éxito!` });
+    }
+  };
   
   // ─── DOMINGOS ELIMINADOS ───
   const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -133,15 +228,6 @@ export default function MisCitas() {
     }
   };
 
-  const obtenerPrecioFijo = (servicio) => {
-    if (!servicio) return 4000;
-    const serv = servicio.toLowerCase();
-    if (serv.includes('corte y barba') || serv.includes('combo')) return 6000;
-    if (serv.includes('barba')) return 2000;
-    if (serv.includes('corte')) return 4000;
-    return 4000;
-  };
-
   const procesarPago = async (e) => {
     e.preventDefault();
     const { error } = await supabase.from('citas').update({ 
@@ -177,16 +263,13 @@ export default function MisCitas() {
     
     const mensaje = `Hola ${cita.cliente_nombre}, te saludamos de Aragon Barber Studio. 💈\n\nTe escribimos para recordarte tu cita *hoy* a las *${horaTexto}* para tu servicio de *${cita.servicio}*.\n\n📍 *Ubicación:*\n${direccionWaze}\n\n¡Te esperamos! Por favor avísanos si necesitas reprogramar.`;
     
-    // Limpiamos el número de teléfono por si tiene espacios o guiones
     const telefonoLimpio = cita.telefono ? cita.telefono.replace(/\D/g, '') : '';
     
-    // Si tiene un número válido de Costa Rica (8 dígitos), abrimos WhatsApp directo
     if (telefonoLimpio.length === 8 || telefonoLimpio.length === 11) {
       const numeroConCodigo = telefonoLimpio.length === 8 ? `506${telefonoLimpio}` : telefonoLimpio;
       const urlWhatsApp = `https://api.whatsapp.com/send?phone=${numeroConCodigo}&text=${encodeURIComponent(mensaje)}`;
       window.open(urlWhatsApp, '_blank');
     } else {
-      // Si el número no está guardado o es inválido, solo copiamos al portapapeles
       navigator.clipboard.writeText(mensaje);
       setModalAlerta({ 
         isOpen: true, 
@@ -268,7 +351,28 @@ export default function MisCitas() {
 
         {/* ─── AGENDA DE CITAS ACTIVAS ─── */}
         <main>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', marginBottom: '2rem', color: 'var(--gold)' }}>Agenda Activa</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', margin: 0, color: 'var(--gold)' }}>Agenda Activa</h2>
+            <button 
+              onClick={() => setIsModalFijaOpen(true)}
+              style={{
+                background: 'var(--gold)',
+                color: '#000',
+                border: 'none',
+                padding: '0.9rem 1.6rem',
+                borderRadius: '50px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                fontSize: '0.8rem',
+                boxShadow: '0 4px 15px rgba(212, 175, 55, 0.25)'
+              }}
+            >
+              ➕ Agendar Plan Mensual / Cita Fija
+            </button>
+          </div>
+
           {loading ? <p style={{ color: 'var(--grey)' }}>Cargando agenda...</p> : citas.length === 0 ? (
             <div style={{ padding: '3rem', border: '1px dashed #333', textAlign: 'center', borderRadius: '12px' }}>
               <p style={{ color: 'var(--grey)' }}>La agenda está limpia. No hay citas pendientes.</p>
@@ -288,7 +392,6 @@ export default function MisCitas() {
 
                   {/* ─── BOTONES DE ACCIÓN EN LA TARJETA ─── */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', borderTop: '1px solid #222', paddingTop: '1.2rem', marginTop: 'auto' }}>
-                    {/* BOTÓN WHATSAPP */}
                     <button 
                       onClick={() => enviarRecordatorioWhatsApp(cita)} 
                       style={btnWhatsApp}
@@ -308,6 +411,125 @@ export default function MisCitas() {
             </div>
           )}
         </main>
+
+        {/* ─── MODAL: AGENDAR PLAN MENSUAL / CITA FIJA ─── */}
+        {isModalFijaOpen && (
+          <div style={overlayStyle}>
+            <div style={{ ...modalStyle, maxWidth: '520px', textAlign: 'left', maxHeight: '90vh', overflowY: 'auto' }}>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.7rem', color: 'var(--gold)', marginBottom: '0.4rem', textAlign: 'center' }}>
+                Plan Mensual / Cita Fija
+              </h3>
+              <p style={{ color: 'var(--grey)', fontSize: '0.85rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+                Configura el día fijo del mes y elige el servicio para cada semana.
+              </p>
+
+              <form onSubmit={guardarCitasFijas} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                  <div>
+                    <label style={labelModalStyle}>Nombre del Cliente *</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Carlos"
+                      value={formFija.cliente_nombre}
+                      onChange={e => setFormFija({ ...formFija, cliente_nombre: e.target.value })}
+                      style={inputModalStyle}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={labelModalStyle}>Teléfono (WhatsApp)</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. 88888888"
+                      value={formFija.telefono}
+                      onChange={e => setFormFija({ ...formFija, telefono: e.target.value })}
+                      style={inputModalStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.8rem' }}>
+                  <div>
+                    <label style={labelModalStyle}>Mes</label>
+                    <input
+                      type="month"
+                      value={formFija.mes}
+                      onChange={e => setFormFija({ ...formFija, mes: e.target.value })}
+                      style={inputModalStyle}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={labelModalStyle}>Día Fijo</label>
+                    <select
+                      value={formFija.diaSemana}
+                      onChange={e => setFormFija({ ...formFija, diaSemana: Number(e.target.value) })}
+                      style={inputModalStyle}
+                    >
+                      {diasSemana.map((d, i) => (
+                        <option key={d} value={i + 1}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelModalStyle}>Hora Fija</label>
+                    <select
+                      value={formFija.hora}
+                      onChange={e => setFormFija({ ...formFija, hora: e.target.value })}
+                      style={inputModalStyle}
+                    >
+                      {bloquesHorarios.map(h => (
+                        <option key={h} value={h}>{formato12h(h)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* LISTA DE SEMANAS DEL MES */}
+                <div style={{ background: '#111', padding: '1rem', borderRadius: '10px', border: '1px solid #222', marginTop: '0.5rem' }}>
+                  <p style={{ color: 'var(--gold)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.8rem', fontWeight: 'bold' }}>
+                    Servicios por semana ({diasSemana[formFija.diaSemana - 1]}):
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    {fechasMes.map((item, idx) => (
+                      <div key={item.fecha} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', background: '#0a0a0a', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #222' }}>
+                        <div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff' }}>
+                            {item.etiqueta} {diasSemana[formFija.diaSemana - 1]}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--grey)' }}>
+                            Fecha: {item.fecha}
+                          </div>
+                        </div>
+
+                        <select
+                          value={item.servicio}
+                          onChange={e => cambiarServicioFecha(idx, e.target.value)}
+                          style={{ ...inputModalStyle, width: 'auto', minWidth: '155px', padding: '0.45rem 0.6rem' }}
+                        >
+                          <option value="Corte y Barba">Corte y Barba (₡6000)</option>
+                          <option value="Corte">Solo Corte (₡4000)</option>
+                          <option value="Barba">Solo Barba (₡2000)</option>
+                          <option value="ninguno">-- No agendar --</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                  <button type="button" onClick={() => setIsModalFijaOpen(false)} style={btnBack}>
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={guardandoFijas} style={btnConfirmGold}>
+                    {guardandoFijas ? 'Guardando...' : 'Agendar Citas del Mes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* ─── MODALES (PAGO, CANCELAR Y DESBLOQUEO) ─── */}
         {isModalPagoOpen && (
@@ -392,7 +614,6 @@ export default function MisCitas() {
       
       <style>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* Ocultar flechas del input number para un look más limpio */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
           -webkit-appearance: none; 
@@ -417,4 +638,6 @@ const btnBack = { flex: 1, background: 'transparent', border: '1px solid #444', 
 const btnConfirmGreen = { flex: 1, background: '#00C851', border: 'none', color: '#000', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
 const btnConfirmRed = { flex: 1, background: '#ff4444', border: 'none', color: '#fff', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
 const btnConfirmLight = { flex: 1, background: 'var(--cream)', border: 'none', color: '#000', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
-const btnConfirmGold = { width: '100%', background: 'var(--gold)', border: 'none', color: '#000', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
+const btnConfirmGold = { flex: 1, width: '100%', background: 'var(--gold)', border: 'none', color: '#000', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
+const labelModalStyle = { display: 'block', fontSize: '0.75rem', color: 'var(--grey)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' };
+const inputModalStyle = { width: '100%', background: '#151515', border: '1px solid #333', color: '#fff', padding: '0.7rem', borderRadius: '8px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' };
