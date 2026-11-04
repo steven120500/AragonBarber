@@ -16,7 +16,6 @@ import MisCitas from './pages/admin/MisCitas';
 import Finanzas from './pages/admin/Finanzas'; 
 import GestionProductos from './pages/admin/GestionProductos'; 
 
-// ESTE ES EL LANDING PAGE QUE REALMENTE ESTÁ LEYENDO TU PÁGINA
 function LandingPage() {
   const [productos, setProductos] = useState([]);
   const scrollRef = useRef(null);
@@ -34,70 +33,139 @@ function LandingPage() {
     fetchProductos();
   }, []);
 
-  // ─── AUTOSCROLL INFINITO + SCROLL MANUAL (100% COMPATIBLE CON CUALQUIER CELULAR Y PC) ───
+  // Creamos una lista base amplia y la triplicamos (Izquierda - Centro - Derecha)
+  // Esto garantiza que nunca choques con el borde 0 al devolver el scroll
+  const baseList = productos.length > 0 
+    ? Array(Math.max(2, Math.ceil(6 / productos.length))).fill(productos).flat() 
+    : [];
+  const productosInfinitos = [...baseList, ...baseList, ...baseList];
+
+  // ─── MOTOR DE CARRUSEL INFINITO SIN BLOQUEOS (PC, ANDROID Y IPHONE) ───
   useEffect(() => {
     const container = scrollRef.current;
     if (!container || productos.length === 0) return;
 
     let animationFrameId;
-    let resumeTimeout;
-    let isInteracting = false;
-    let accumulatedScroll = container.scrollLeft;
+    let isPointerDown = false;
+    let isHovering = false;
+    let pauseUntil = 0; // Marca de tiempo para respetar la inercia del dedo
+    let exactScroll = 0;
+    let initialized = false;
 
-    const pauseAutoScroll = () => {
-      isInteracting = true;
-      clearTimeout(resumeTimeout);
+    // Variables para permitir arrastrar con el mouse en PC (Click & Drag)
+    let startX = 0;
+    let startScrollLeft = 0;
+
+    const initPosition = () => {
+      const oneThird = container.scrollWidth / 3;
+      if (oneThird > 0 && !initialized) {
+        container.scrollLeft = oneThird;
+        exactScroll = oneThird;
+        initialized = true;
+      }
     };
 
-    const resumeAutoScroll = (delay = 1200) => {
-      clearTimeout(resumeTimeout);
-      resumeTimeout = setTimeout(() => {
-        if (container) {
-          // Sincroniza exactamente en el punto donde el usuario dejó el scroll manual
-          accumulatedScroll = container.scrollLeft;
+    initPosition();
+    setTimeout(initPosition, 120);
+
+    // Mantiene la posición siempre en el tercio central de forma invisible
+    const wrapScroll = () => {
+      const oneThird = container.scrollWidth / 3;
+      if (oneThird <= 0) return;
+
+      if (container.scrollLeft >= oneThird * 2) {
+        container.scrollLeft -= oneThird;
+        exactScroll = container.scrollLeft;
+      } else if (container.scrollLeft <= 10) {
+        container.scrollLeft += oneThird;
+        exactScroll = container.scrollLeft;
+      }
+    };
+
+    // 1. Eventos Táctiles (iPhone / Android)
+    const onTouchStart = () => {
+      isPointerDown = true;
+    };
+
+    const onTouchEnd = () => {
+      isPointerDown = false;
+      // Damos 1.4 segundos libres para que la inercia del dedo en el celular termine suave
+      pauseUntil = performance.now() + 1400;
+      exactScroll = container.scrollLeft;
+    };
+
+    // 2. Eventos de Rueda / Trackpad
+    const onWheel = () => {
+      pauseUntil = performance.now() + 1000;
+      wrapScroll();
+      exactScroll = container.scrollLeft;
+    };
+
+    // 3. Eventos de Mouse en PC (Pausa al pasar el cursor + arrastrar con clic)
+    const onMouseEnter = () => {
+      if (window.matchMedia('(hover: hover)').matches) {
+        isHovering = true;
+      }
+    };
+
+    const onMouseLeave = () => {
+      isHovering = false;
+      isPointerDown = false;
+      exactScroll = container.scrollLeft;
+    };
+
+    const onMouseDown = (e) => {
+      isPointerDown = true;
+      startX = e.pageX - container.offsetLeft;
+      startScrollLeft = container.scrollLeft;
+    };
+
+    const onMouseMove = (e) => {
+      if (!isPointerDown) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      container.scrollLeft = startScrollLeft - walk;
+      wrapScroll();
+      exactScroll = container.scrollLeft;
+    };
+
+    const onMouseUp = () => {
+      if (isPointerDown) {
+        isPointerDown = false;
+        exactScroll = container.scrollLeft;
+      }
+    };
+
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchend', onTouchEnd, { passive: true });
+    container.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    container.addEventListener('wheel', onWheel, { passive: true });
+    container.addEventListener('mouseenter', onMouseEnter);
+    container.addEventListener('mouseleave', onMouseLeave);
+    container.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    let lastTime = performance.now();
+
+    const step = (now) => {
+      const dt = Math.min(now - lastTime, 50);
+      lastTime = now;
+
+      if (container) {
+        const isPaused = isPointerDown || isHovering || now < pauseUntil;
+
+        if (!isPaused) {
+          // Avanza a 45 píxeles por segundo sin importar los Hz de la pantalla
+          exactScroll += (45 * dt) / 1000;
+          container.scrollLeft = exactScroll;
+          wrapScroll();
+        } else {
+          // Mientras el usuario desliza manualmente o hay inercia, solo vigilamos los bordes
+          wrapScroll();
+          exactScroll = container.scrollLeft;
         }
-        isInteracting = false;
-      }, delay);
-    };
-
-    // Eventos exclusivos para dedo en celular (Android / iPhone)
-    const handleTouchStart = () => pauseAutoScroll();
-    const handleTouchEnd = () => resumeAutoScroll(1200);
-
-    // Eventos exclusivos para mouse en computadora (ignorando toques falsos de celular)
-    const handleMouseEnter = () => {
-      if (window.matchMedia('(hover: hover)').matches) pauseAutoScroll();
-    };
-    const handleMouseLeave = () => {
-      if (window.matchMedia('(hover: hover)').matches) resumeAutoScroll(300);
-    };
-
-    // Si usa la rueda del mouse o trackpad
-    const handleWheel = () => {
-      pauseAutoScroll();
-      resumeAutoScroll(1200);
-    };
-
-    container.addEventListener('touchstart', handleTouchStart, { passive: true });
-    container.addEventListener('touchend', handleTouchEnd, { passive: true });
-    container.addEventListener('touchcancel', handleTouchEnd, { passive: true });
-    container.addEventListener('mouseenter', handleMouseEnter);
-    container.addEventListener('mouseleave', handleMouseLeave);
-    container.addEventListener('wheel', handleWheel, { passive: true });
-
-    const step = () => {
-      if (!isInteracting && container) {
-        accumulatedScroll += 0.8; // Guardamos los decimales en memoria para que iOS/Android no los ignoren
-
-        const halfWidth = container.scrollWidth / 2;
-        if (halfWidth > 0 && accumulatedScroll >= halfWidth) {
-          accumulatedScroll -= halfWidth;
-        }
-
-        container.scrollLeft = accumulatedScroll;
-      } else if (container) {
-        // Mientras el usuario desliza con el dedo, actualizamos la posición real
-        accumulatedScroll = container.scrollLeft;
       }
       animationFrameId = requestAnimationFrame(step);
     };
@@ -106,36 +174,26 @@ function LandingPage() {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      clearTimeout(resumeTimeout);
       if (container) {
-        container.removeEventListener('touchstart', handleTouchStart);
-        container.removeEventListener('touchend', handleTouchEnd);
-        container.removeEventListener('touchcancel', handleTouchEnd);
-        container.removeEventListener('mouseenter', handleMouseEnter);
-        container.removeEventListener('mouseleave', handleMouseLeave);
-        container.removeEventListener('wheel', handleWheel);
+        container.removeEventListener('touchstart', onTouchStart);
+        container.removeEventListener('touchend', onTouchEnd);
+        container.removeEventListener('touchcancel', onTouchEnd);
+        container.removeEventListener('wheel', onWheel);
+        container.removeEventListener('mouseenter', onMouseEnter);
+        container.removeEventListener('mouseleave', onMouseLeave);
+        container.removeEventListener('mousedown', onMouseDown);
       }
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
     };
   }, [productos]);
 
-  // Funciones para los botones de flechas laterales
-  const scrollLeftBtn = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
-    }
+  // Botones de flechas por si el usuario prefiere tocarlos
+  const moverManual = (direccion) => {
+    const container = scrollRef.current;
+    if (!container) return;
+    container.scrollBy({ left: direccion * 310, behavior: 'smooth' });
   };
-
-  const scrollRightBtn = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
-    }
-  };
-
-  // Repetimos los productos suficientes veces para garantizar que siempre haya espacio para girar en cualquier pantalla
-  const baseList = productos.length > 0 
-    ? Array(Math.max(2, Math.ceil(6 / productos.length))).fill(productos).flat() 
-    : [];
-  const productosInfinitos = [...baseList, ...baseList];
 
   return (
     <div className="app-container">
@@ -153,7 +211,7 @@ function LandingPage() {
         <BookingWrapper />
       </section>
       
-      {/* 2. NUEVA BANDA DE PRODUCTOS CON AUTOSCROLL Y SCROLL MANUAL */}
+      {/* 2. BANDA DE PRODUCTOS FLUIDA */}
       {productos.length > 0 && (
         <section id="productos" style={{ padding: '4rem 2rem', background: '#0a0a0a', borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a' }}>
           <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -162,11 +220,13 @@ function LandingPage() {
                 <h2 className="hero-title" style={{ margin: '0 0 0.5rem 0', fontSize: '2.5rem' }}>Nuestros Productos</h2>
                 <p className="section-sub" style={{ margin: 0 }}>Lleva la calidad de la barbería a tu casa. Desliza libremente o deja que se mueva solo.</p>
               </div>
-              
-          
+
+              <div style={{ display: 'flex', gap: '0.8rem' }}>
+                <button onClick={() => moverManual(-1)} style={flechaBtnStyle} title="Anterior">←</button>
+                <button onClick={() => moverManual(1)} style={flechaBtnStyle} title="Siguiente">→</button>
+              </div>
             </div>
             
-            {/* Contenedor adaptado con efecto de fondo difuminado para botellas alargadas */}
             <div 
               ref={scrollRef}
               className="productos-container"
@@ -176,29 +236,47 @@ function LandingPage() {
                 overflowX: 'auto', 
                 paddingBottom: '1.5rem', 
                 WebkitOverflowScrolling: 'touch',
-                touchAction: 'pan-x pan-y',
                 cursor: 'grab'
               }}
             >
               {productosInfinitos.map((prod, index) => (
-                <div key={`${prod.id}-${index}`} style={{ minWidth: '280px', maxWidth: '300px', background: '#111', borderRadius: '12px', border: '1px solid #333', overflow: 'hidden', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-                  
-                  {/* Contenedor de imagen adaptado para botellas alargadas (fondo difuminado + imagen completa) */}
-                  <div style={{ height: '260px', background: '#151515', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+                <div 
+                  key={`${prod.id}-${index}`} 
+                  style={{ 
+                    minWidth: '280px', 
+                    maxWidth: '300px', 
+                    background: '#111', 
+                    borderRadius: '14px', 
+                    border: '1px solid #262626', 
+                    overflow: 'hidden', 
+                    flexShrink: 0, 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    userSelect: 'none'
+                  }}
+                >
+                  {/* Contenedor de imagen con fondo gris neutro (#404040) que se funde con tus fotos sin marcos raros */}
+                  <div style={{ 
+                    height: '250px', 
+                    background: '#404040', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    overflow: 'hidden', 
+                    position: 'relative' 
+                  }}>
                     {prod.imagen_url ? (
-                      <>
-                        <img 
-                          src={prod.imagen_url} 
-                          alt="" 
-                          aria-hidden="true"
-                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(18px) brightness(0.35)', transform: 'scale(1.2)' }} 
-                        />
-                        <img 
-                          src={prod.imagen_url} 
-                          alt={prod.nombre} 
-                          style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain', padding: '12px', boxSizing: 'border-box', filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.6))' }} 
-                        />
-                      </>
+                      <img 
+                        src={prod.imagen_url} 
+                        alt={prod.nombre} 
+                        draggable="false"
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'contain',
+                          pointerEvents: 'none'
+                        }} 
+                      />
                     ) : (
                       <span style={{ fontSize: '4rem' }}>💈</span>
                     )}
@@ -215,6 +293,7 @@ function LandingPage() {
                         target="_blank" 
                         rel="noreferrer"
                         className="btn-pedir"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         Pedir
                       </a>
@@ -226,11 +305,19 @@ function LandingPage() {
           </div>
           
           <style>{`
+            .productos-container {
+              scroll-behavior: auto !important;
+              scrollbar-width: thin;
+              scrollbar-color: var(--gold) #161616;
+            }
+            .productos-container:active {
+              cursor: grabbing;
+            }
             .productos-container::-webkit-scrollbar {
-              height: 8px;
+              height: 6px;
             }
             .productos-container::-webkit-scrollbar-track {
-              background: #111;
+              background: #161616;
               border-radius: 4px;
             }
             .productos-container::-webkit-scrollbar-thumb {
@@ -276,10 +363,10 @@ const flechaBtnStyle = {
   background: '#151515',
   border: '1px solid #333',
   color: 'var(--gold)',
-  width: '45px',
-  height: '45px',
+  width: '42px',
+  height: '42px',
   borderRadius: '50%',
-  fontSize: '1.2rem',
+  fontSize: '1.1rem',
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',

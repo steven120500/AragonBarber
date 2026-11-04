@@ -24,6 +24,7 @@ export default function GestionProductos() {
   const [modalEditar, setModalEditar] = useState(false);
   const [productoEditando, setProductoEditando] = useState(null);
   const [imagenEditFile, setImagenEditFile] = useState(null);
+  const [previewEditUrl, setPreviewEditUrl] = useState(null);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -117,7 +118,16 @@ export default function GestionProductos() {
   const abrirModalEdicion = (producto) => {
     setProductoEditando({ ...producto });
     setImagenEditFile(null);
+    setPreviewEditUrl(producto.imagen_url || null);
     setModalEditar(true);
+  };
+
+  const handleSeleccionarImagenEdit = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImagenEditFile(file);
+      setPreviewEditUrl(URL.createObjectURL(file));
+    }
   };
 
   const handleEditarSubmit = async (e) => {
@@ -161,6 +171,7 @@ export default function GestionProductos() {
       setModalEditar(false);
       setProductoEditando(null);
       setImagenEditFile(null);
+      setPreviewEditUrl(null);
       cargarProductos();
       setModalAlerta({ isOpen: true, mensaje: '¡Producto actualizado correctamente!', tipo: 'exito' });
     } else {
@@ -246,22 +257,28 @@ export default function GestionProductos() {
               {productos.map(p => (
                 <div key={p.id} style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                   
-                  {/* Foto con soporte para botellas alargadas */}
-                  <div style={{ height: '260px', background: '#151515', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                  {/* Contenedor de imagen optimizado (idéntico al Landing Page) */}
+                  <div style={{ 
+                    height: '260px', 
+                    background: 'radial-gradient(circle at center, #252525 0%, #121212 100%)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    position: 'relative', 
+                    overflow: 'hidden' 
+                  }}>
                     {p.imagen_url ? (
-                      <>
-                        <img 
-                          src={p.imagen_url} 
-                          alt="" 
-                          aria-hidden="true"
-                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(18px) brightness(0.35)', transform: 'scale(1.2)' }} 
-                        />
-                        <img 
-                          src={p.imagen_url} 
-                          alt={p.nombre} 
-                          style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain', padding: '12px', boxSizing: 'border-box' }} 
-                        />
-                      </>
+                      <img 
+                        src={p.imagen_url} 
+                        alt={p.nombre} 
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'contain', 
+                          padding: '14px', 
+                          boxSizing: 'border-box' 
+                        }} 
+                      />
                     ) : (
                       <span style={{ fontSize: '4rem' }}>💈</span>
                     )}
@@ -290,7 +307,7 @@ export default function GestionProductos() {
                         onClick={() => abrirModalEdicion(p)} 
                         style={{ flex: 1, padding: '0.8rem 0.5rem', border: '1px solid var(--gold)', borderRadius: '50px', background: 'transparent', color: 'var(--gold)', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', fontSize: '0.7rem' }}
                       >
-                        Editar
+                        ✏️ Editar
                       </button>
                       
                       <button 
@@ -352,11 +369,16 @@ export default function GestionProductos() {
                 
                 <div style={{ background: '#151515', border: '1px solid #333', padding: '1rem', borderRadius: '8px' }}>
                   <label style={{ ...labelModalStyle, marginBottom: '0.5rem' }}>📷 Reemplazar Foto (Opcional)</label>
+                  {previewEditUrl && (
+                    <div style={{ height: '140px', background: '#0d0d0d', borderRadius: '8px', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #222' }}>
+                      <img src={previewEditUrl} alt="Vista previa" style={{ height: '100%', width: '100%', objectFit: 'contain', padding: '8px', boxSizing: 'border-box' }} />
+                    </div>
+                  )}
                   <p style={{ color: 'var(--grey)', fontSize: '0.75rem', marginBottom: '0.8rem' }}>Si no seleccionas nada, se mantendrá la foto actual.</p>
                   <input 
                     type="file" 
                     accept="image/*"
-                    onChange={e => setImagenEditFile(e.target.files[0])} 
+                    onChange={handleSeleccionarImagenEdit} 
                     style={{ color: '#fff', width: '100%', fontSize: '0.85rem' }}
                   />
                 </div>
