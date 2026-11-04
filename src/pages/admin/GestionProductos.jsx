@@ -20,7 +20,7 @@ export default function GestionProductos() {
   const [modalAlerta, setModalAlerta] = useState({ isOpen: false, mensaje: '', tipo: 'exito' }); 
   const [modalConfirmacion, setModalConfirmacion] = useState({ isOpen: false, id: null, imagenUrl: null });
   
-  // ─── NUEVOS ESTADOS PARA EDICIÓN ───
+  // ─── ESTADOS PARA EDICIÓN ───
   const [modalEditar, setModalEditar] = useState(false);
   const [productoEditando, setProductoEditando] = useState(null);
   const [imagenEditFile, setImagenEditFile] = useState(null);
@@ -125,7 +125,6 @@ export default function GestionProductos() {
     setGuardando(true);
     let newImageUrl = productoEditando.imagen_url;
 
-    // Si se sube una nueva imagen durante la edición
     if (imagenEditFile) {
       const fileExt = imagenEditFile.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
@@ -143,7 +142,6 @@ export default function GestionProductos() {
       const { data: urlData } = supabase.storage.from('productos').getPublicUrl(fileName);
       newImageUrl = urlData.publicUrl;
 
-      // Borrar la imagen vieja de Supabase Storage para no acumular basura
       if (productoEditando.imagen_url) {
         const oldFileName = productoEditando.imagen_url.split('/').pop();
         await supabase.storage.from('productos').remove([oldFileName]);
@@ -248,14 +246,27 @@ export default function GestionProductos() {
               {productos.map(p => (
                 <div key={p.id} style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                   
-                  <div style={{ height: '220px', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                  {/* Foto con soporte para botellas alargadas */}
+                  <div style={{ height: '260px', background: '#151515', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                     {p.imagen_url ? (
-                      <img src={p.imagen_url} alt={p.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <>
+                        <img 
+                          src={p.imagen_url} 
+                          alt="" 
+                          aria-hidden="true"
+                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(18px) brightness(0.35)', transform: 'scale(1.2)' }} 
+                        />
+                        <img 
+                          src={p.imagen_url} 
+                          alt={p.nombre} 
+                          style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain', padding: '12px', boxSizing: 'border-box' }} 
+                        />
+                      </>
                     ) : (
                       <span style={{ fontSize: '4rem' }}>💈</span>
                     )}
                     {!p.stock && (
-                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4444', fontWeight: 'bold', fontSize: '1.5rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4444', fontWeight: 'bold', fontSize: '1.5rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                         Agotado
                       </div>
                     )}
@@ -266,7 +277,7 @@ export default function GestionProductos() {
                     <p style={{ color: 'var(--grey)', fontSize: '0.85rem', marginBottom: '1rem', flex: 1 }}>{p.descripcion}</p>
                     <p style={{ color: '#fff', fontWeight: 'bold', fontSize: '1.2rem', marginBottom: '1.5rem' }}>₡{p.precio}</p>
                     
-                    {/* BOTONES DE ACCIÓN (Ahora con botón de Editar) */}
+                    {/* BOTONES DE ACCIÓN */}
                     <div style={{ display: 'flex', gap: '0.6rem' }}>
                       <button 
                         onClick={() => toggleStock(p.id, p.stock)} 
@@ -279,7 +290,7 @@ export default function GestionProductos() {
                         onClick={() => abrirModalEdicion(p)} 
                         style={{ flex: 1, padding: '0.8rem 0.5rem', border: '1px solid var(--gold)', borderRadius: '50px', background: 'transparent', color: 'var(--gold)', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', fontSize: '0.7rem' }}
                       >
-                     Editar
+                        Editar
                       </button>
                       
                       <button 

@@ -34,31 +34,70 @@ function LandingPage() {
     fetchProductos();
   }, []);
 
-  // ─── AUTOSCROLL INFINITO QUE PERMITE SCROLL MANUAL ───
+  // ─── AUTOSCROLL INFINITO + SCROLL MANUAL (100% COMPATIBLE CON CUALQUIER CELULAR Y PC) ───
   useEffect(() => {
     const container = scrollRef.current;
     if (!container || productos.length === 0) return;
 
     let animationFrameId;
+    let resumeTimeout;
     let isInteracting = false;
+    let accumulatedScroll = container.scrollLeft;
 
-    const stopScroll = () => { isInteracting = true; };
-    const startScroll = () => { isInteracting = false; };
+    const pauseAutoScroll = () => {
+      isInteracting = true;
+      clearTimeout(resumeTimeout);
+    };
 
-    // Detectar cuando el usuario toca la pantalla (móvil) o usa el mouse (PC)
-    container.addEventListener('mouseenter', stopScroll);
-    container.addEventListener('mouseleave', startScroll);
-    container.addEventListener('touchstart', stopScroll, { passive: true });
-    container.addEventListener('touchend', startScroll, { passive: true });
+    const resumeAutoScroll = (delay = 1200) => {
+      clearTimeout(resumeTimeout);
+      resumeTimeout = setTimeout(() => {
+        if (container) {
+          // Sincroniza exactamente en el punto donde el usuario dejó el scroll manual
+          accumulatedScroll = container.scrollLeft;
+        }
+        isInteracting = false;
+      }, delay);
+    };
+
+    // Eventos exclusivos para dedo en celular (Android / iPhone)
+    const handleTouchStart = () => pauseAutoScroll();
+    const handleTouchEnd = () => resumeAutoScroll(1200);
+
+    // Eventos exclusivos para mouse en computadora (ignorando toques falsos de celular)
+    const handleMouseEnter = () => {
+      if (window.matchMedia('(hover: hover)').matches) pauseAutoScroll();
+    };
+    const handleMouseLeave = () => {
+      if (window.matchMedia('(hover: hover)').matches) resumeAutoScroll(300);
+    };
+
+    // Si usa la rueda del mouse o trackpad
+    const handleWheel = () => {
+      pauseAutoScroll();
+      resumeAutoScroll(1200);
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+    container.addEventListener('mouseenter', handleMouseEnter);
+    container.addEventListener('mouseleave', handleMouseLeave);
+    container.addEventListener('wheel', handleWheel, { passive: true });
 
     const step = () => {
       if (!isInteracting && container) {
-        container.scrollLeft += 0.8; // Velocidad del autoscroll
+        accumulatedScroll += 0.8; // Guardamos los decimales en memoria para que iOS/Android no los ignoren
 
-        // Bucle infinito perfecto al llegar a la mitad de los elementos duplicados
-        if (container.scrollLeft >= container.scrollWidth / 2) {
-          container.scrollLeft = 0;
+        const halfWidth = container.scrollWidth / 2;
+        if (halfWidth > 0 && accumulatedScroll >= halfWidth) {
+          accumulatedScroll -= halfWidth;
         }
+
+        container.scrollLeft = accumulatedScroll;
+      } else if (container) {
+        // Mientras el usuario desliza con el dedo, actualizamos la posición real
+        accumulatedScroll = container.scrollLeft;
       }
       animationFrameId = requestAnimationFrame(step);
     };
@@ -67,11 +106,14 @@ function LandingPage() {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      clearTimeout(resumeTimeout);
       if (container) {
-        container.removeEventListener('mouseenter', stopScroll);
-        container.removeEventListener('mouseleave', startScroll);
-        container.removeEventListener('touchstart', stopScroll);
-        container.removeEventListener('touchend', startScroll);
+        container.removeEventListener('touchstart', handleTouchStart);
+        container.removeEventListener('touchend', handleTouchEnd);
+        container.removeEventListener('touchcancel', handleTouchEnd);
+        container.removeEventListener('mouseenter', handleMouseEnter);
+        container.removeEventListener('mouseleave', handleMouseLeave);
+        container.removeEventListener('wheel', handleWheel);
       }
     };
   }, [productos]);
@@ -79,15 +121,21 @@ function LandingPage() {
   // Funciones para los botones de flechas laterales
   const scrollLeftBtn = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+      scrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
     }
   };
 
   const scrollRightBtn = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+      scrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
     }
   };
+
+  // Repetimos los productos suficientes veces para garantizar que siempre haya espacio para girar en cualquier pantalla
+  const baseList = productos.length > 0 
+    ? Array(Math.max(2, Math.ceil(6 / productos.length))).fill(productos).flat() 
+    : [];
+  const productosInfinitos = [...baseList, ...baseList];
 
   return (
     <div className="app-container">
@@ -122,7 +170,7 @@ function LandingPage() {
               </div>
             </div>
             
-            {/* Contenedor habilitado para scroll táctil y manual */}
+            {/* Contenedor adaptado con efecto de fondo difuminado para botellas alargadas */}
             <div 
               ref={scrollRef}
               className="productos-container"
@@ -131,20 +179,35 @@ function LandingPage() {
                 gap: '1.5rem', 
                 overflowX: 'auto', 
                 paddingBottom: '1.5rem', 
-                scrollBehavior: 'smooth',
                 WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-x pan-y',
                 cursor: 'grab'
               }}
             >
-              {[...productos, ...productos].map((prod, index) => (
+              {productosInfinitos.map((prod, index) => (
                 <div key={`${prod.id}-${index}`} style={{ minWidth: '280px', maxWidth: '300px', background: '#111', borderRadius: '12px', border: '1px solid #333', overflow: 'hidden', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ height: '220px', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  
+                  {/* Contenedor de imagen adaptado para botellas alargadas (fondo difuminado + imagen completa) */}
+                  <div style={{ height: '260px', background: '#151515', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
                     {prod.imagen_url ? (
-                      <img src={prod.imagen_url} alt={prod.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <>
+                        <img 
+                          src={prod.imagen_url} 
+                          alt="" 
+                          aria-hidden="true"
+                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(18px) brightness(0.35)', transform: 'scale(1.2)' }} 
+                        />
+                        <img 
+                          src={prod.imagen_url} 
+                          alt={prod.nombre} 
+                          style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain', padding: '12px', boxSizing: 'border-box', filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.6))' }} 
+                        />
+                      </>
                     ) : (
                       <span style={{ fontSize: '4rem' }}>💈</span>
                     )}
                   </div>
+
                   <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
                     <h3 style={{ fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '0.5rem', fontFamily: "'Playfair Display', serif" }}>{prod.nombre}</h3>
                     <p style={{ color: 'var(--grey)', fontSize: '0.9rem', marginBottom: '1.5rem', flex: 1 }}>{prod.descripcion}</p>
