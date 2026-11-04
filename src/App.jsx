@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; 
+import { useState, useEffect, useRef } from 'react'; 
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Nav from './components/layout/Navbar'; 
 import Hero from './components/layout/Hero';
@@ -19,6 +19,7 @@ import GestionProductos from './pages/admin/GestionProductos';
 // ESTE ES EL LANDING PAGE QUE REALMENTE ESTÁ LEYENDO TU PÁGINA
 function LandingPage() {
   const [productos, setProductos] = useState([]);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     const fetchProductos = async () => {
@@ -32,6 +33,62 @@ function LandingPage() {
     };
     fetchProductos();
   }, []);
+
+  // ─── EFECTO DE BUCLE INFINITO SEAMLESS (COMPATIBLE CON IPHONE Y ANDROID) ───
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || productos.length === 0) return;
+
+    let animationFrameId;
+    let isPaused = false;
+
+    const pause = () => { isPaused = true; };
+    const resume = () => { isPaused = false; };
+
+    // Eventos para PC (mouse) y móviles / tablets (iPhone y Android táctil)
+    container.addEventListener('mouseenter', pause);
+    container.addEventListener('mouseleave', resume);
+    container.addEventListener('touchstart', pause, { passive: true });
+    container.addEventListener('touchend', resume, { passive: true });
+
+    const step = () => {
+      if (!isPaused && container) {
+        container.scrollLeft += 0.8; // Velocidad del desplazamiento lento
+
+        // Como duplicamos los productos, al llegar exactamente a la mitad del ancho total,
+        // reiniciamos el scroll a 0 de forma invisible para crear el bucle infinito.
+        if (container.scrollLeft >= container.scrollWidth / 2) {
+          container.scrollLeft = 0;
+        }
+      }
+      animationFrameId = requestAnimationFrame(step);
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      if (container) {
+        container.removeEventListener('mouseenter', pause);
+        container.removeEventListener('mouseleave', resume);
+        container.removeEventListener('touchstart', pause);
+        container.removeEventListener('touchend', resume);
+      }
+    };
+  }, [productos]);
+
+  // Funciones para los botones de flechas laterales
+  const scrollLeftBtn = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRightBtn = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="app-container">
@@ -49,45 +106,73 @@ function LandingPage() {
         <BookingWrapper />
       </section>
       
-      {/* 2. NUEVA BANDA DE PRODUCTOS AQUÍ */}
+      {/* 2. NUEVA BANDA DE PRODUCTOS CON BUCLE INFINITO */}
       {productos.length > 0 && (
         <section id="productos" style={{ padding: '4rem 2rem', background: '#0a0a0a', borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a' }}>
-          <h2 className="hero-title" style={{ textAlign: 'center', margin: '0 0 0.5rem 0', fontSize: '2.5rem' }}>Nuestros Productos</h2>
-          <p className="section-sub" style={{ textAlign: 'center', margin: '0 auto 3rem' }}>Lleva la calidad de la barbería a tu casa</p>
-          
-          <div style={{ display: 'flex', gap: '1.5rem', overflowX: 'auto', paddingBottom: '2rem', snapType: 'x mandatory' }}>
-            {productos.map(prod => (
-              <div key={prod.id} style={{ minWidth: '280px', maxWidth: '300px', background: '#111', borderRadius: '12px', border: '1px solid #333', overflow: 'hidden', flexShrink: 0, scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ height: '220px', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                  {prod.imagen_url ? (
-                    <img src={prod.imagen_url} alt={prod.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span style={{ fontSize: '4rem' }}>💈</span>
-                  )}
-                </div>
-                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                  <h3 style={{ fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '0.5rem', fontFamily: "'Playfair Display', serif" }}>{prod.nombre}</h3>
-                  <p style={{ color: 'var(--grey)', fontSize: '0.9rem', marginBottom: '1.5rem', flex: 1 }}>{prod.descripcion}</p>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-                    <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#fff' }}>₡{prod.precio}</span>
-                    <a 
-                      href={`https://wa.me/50683678788?text=${encodeURIComponent(`Hola, me interesa este producto: ${prod.nombre}\n\n📝 Descripción: ${prod.descripcion}\n💰 Precio: ₡${prod.precio}`)}`} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="btn-pedir"
-                    >
-                      Pedir
-                    </a>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 className="hero-title" style={{ margin: '0 0 0.5rem 0', fontSize: '2.5rem' }}>Nuestros Productos</h2>
+                <p className="section-sub" style={{ margin: 0 }}>Lleva la calidad de la barbería a tu casa.</p>
+              </div>
+            
+            </div>
+            
+            {/* Contenedor con duplicación de elementos para bucle perfecto en iOS y Android */}
+            <div 
+              ref={scrollRef}
+              className="productos-container"
+              style={{ 
+                display: 'flex', 
+                gap: '1.5rem', 
+                overflowX: 'auto', 
+                paddingBottom: '1.5rem', 
+                scrollBehavior: 'smooth',
+                WebkitOverflowScrolling: 'touch' // Suaviza el scroll táctil en iPhone
+              }}
+            >
+              {[...productos, ...productos].map((prod, index) => (
+                <div key={`${prod.id}-${index}`} style={{ minWidth: '280px', maxWidth: '300px', background: '#111', borderRadius: '12px', border: '1px solid #333', overflow: 'hidden', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ height: '220px', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {prod.imagen_url ? (
+                      <img src={prod.imagen_url} alt={prod.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ fontSize: '4rem' }}>💈</span>
+                    )}
+                  </div>
+                  <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                    <h3 style={{ fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '0.5rem', fontFamily: "'Playfair Display', serif" }}>{prod.nombre}</h3>
+                    <p style={{ color: 'var(--grey)', fontSize: '0.9rem', marginBottom: '1.5rem', flex: 1 }}>{prod.descripcion}</p>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+                      <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#fff' }}>₡{prod.precio}</span>
+                      <a 
+                        href={`https://wa.me/50683678788?text=${encodeURIComponent(`Hola, me interesa este producto: ${prod.nombre}\n\n📝 Descripción: ${prod.descripcion}\n💰 Precio: ₡${prod.precio}`)}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="btn-pedir"
+                      >
+                        Pedir
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
           
           <style>{`
-            #productos div::-webkit-scrollbar { display: none; }
-            #productos div { -ms-overflow-style: none; scrollbar-width: none; }
+            .productos-container::-webkit-scrollbar {
+              height: 8px;
+            }
+            .productos-container::-webkit-scrollbar-track {
+              background: #111;
+              border-radius: 4px;
+            }
+            .productos-container::-webkit-scrollbar-thumb {
+              background: var(--gold);
+              border-radius: 4px;
+            }
             
             .btn-pedir {
               background: #EFEFD4;
@@ -122,6 +207,21 @@ function LandingPage() {
     </div>
   );
 }
+
+const flechaBtnStyle = {
+  background: '#151515',
+  border: '1px solid #333',
+  color: 'var(--gold)',
+  width: '45px',
+  height: '45px',
+  borderRadius: '50%',
+  fontSize: '1.2rem',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'all 0.2s ease'
+};
 
 export default function App() {
   return (
