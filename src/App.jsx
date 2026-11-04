@@ -163,11 +163,7 @@ function LandingPage() {
                 <p className="section-sub" style={{ margin: 0 }}>Lleva la calidad de la barbería a tu casa. Desliza libremente o deja que se mueva solo.</p>
               </div>
               
-              {/* Botones de flechas */}
-              <div style={{ display: 'flex', gap: '0.8rem' }}>
-                <button onClick={scrollLeftBtn} style={flechaBtnStyle} title="Anterior">←</button>
-                <button onClick={scrollRightBtn} style={flechaBtnStyle} title="Siguiente">→</button>
-              </div>
+          
             </div>
             
             {/* Contenedor adaptado con efecto de fondo difuminado para botellas alargadas */}
