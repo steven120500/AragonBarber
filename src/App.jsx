@@ -18,7 +18,8 @@ import GestionProductos from './pages/admin/GestionProductos';
 
 function LandingPage() {
   const [productos, setProductos] = useState([]);
-  const scrollRef = useRef(null);
+  const trackRef = useRef(null);
+  const controlsRef = useRef({ boost: null });
 
   useEffect(() => {
     const fetchProductos = async () => {
@@ -33,139 +34,180 @@ function LandingPage() {
     fetchProductos();
   }, []);
 
-  // Creamos una lista base amplia y la triplicamos (Izquierda - Centro - Derecha)
-  // Esto garantiza que nunca choques con el borde 0 al devolver el scroll
+  // Multiplicamos la lista para que una mitad sea más ancha que cualquier pantalla
   const baseList = productos.length > 0 
-    ? Array(Math.max(2, Math.ceil(6 / productos.length))).fill(productos).flat() 
+    ? Array(Math.max(3, Math.ceil(8 / productos.length))).fill(productos).flat() 
     : [];
-  const productosInfinitos = [...baseList, ...baseList, ...baseList];
+  const productosInfinitos = [...baseList, ...baseList];
 
-  // ─── MOTOR DE CARRUSEL INFINITO SIN BLOQUEOS (PC, ANDROID Y IPHONE) ───
+  // ─── MOTOR FÍSICO GPU (TRANSLATE3D) CON INERCIA TÁCTIL SIN TRABAS ───
   useEffect(() => {
-    const container = scrollRef.current;
-    if (!container || productos.length === 0) return;
+    const track = trackRef.current;
+    if (!track || productos.length === 0) return;
 
     let animationFrameId;
-    let isPointerDown = false;
+    let pos = 0; // Posición actual en píxeles
+    const autoSpeed = -0.65; // Velocidad automática hacia la izquierda
+    let velocity = autoSpeed;
+
+    let isDragging = false;
     let isHovering = false;
-    let pauseUntil = 0; // Marca de tiempo para respetar la inercia del dedo
-    let exactScroll = 0;
-    let initialized = false;
-
-    // Variables para permitir arrastrar con el mouse en PC (Click & Drag)
     let startX = 0;
-    let startScrollLeft = 0;
+    let startY = 0;
+    let lastX = 0;
+    let lastTime = 0;
+    let isHorizontalDrag = null;
+    let hasMoved = false;
 
-    const initPosition = () => {
-      const oneThird = container.scrollWidth / 3;
-      if (oneThird > 0 && !initialized) {
-        container.scrollLeft = oneThird;
-        exactScroll = oneThird;
-        initialized = true;
+    const getHalfWidth = () => track.scrollWidth / 2;
+
+    // Mantiene la posición en un bucle infinito invisible hacia ambos lados
+    const normalizePosition = () => {
+      const halfWidth = getHalfWidth();
+      if (halfWidth <= 0) return;
+
+      if (pos <= -halfWidth) {
+        pos += halfWidth;
+      } else if (pos > 0) {
+        pos -= halfWidth;
       }
     };
 
-    initPosition();
-    setTimeout(initPosition, 120);
-
-    // Mantiene la posición siempre en el tercio central de forma invisible
-    const wrapScroll = () => {
-      const oneThird = container.scrollWidth / 3;
-      if (oneThird <= 0) return;
-
-      if (container.scrollLeft >= oneThird * 2) {
-        container.scrollLeft -= oneThird;
-        exactScroll = container.scrollLeft;
-      } else if (container.scrollLeft <= 10) {
-        container.scrollLeft += oneThird;
-        exactScroll = container.scrollLeft;
-      }
+    // Permite que las flechas impulsen el carrusel suavemente
+    controlsRef.current.boost = (dir) => {
+      velocity = dir * 14;
     };
 
-    // 1. Eventos Táctiles (iPhone / Android)
-    const onTouchStart = () => {
-      isPointerDown = true;
+    // ─── EVENTOS TÁCTILES (IPHONE Y ANDROID) ───
+    const onTouchStart = (e) => {
+      isDragging = true;
+      isHorizontalDrag = null;
+      hasMoved = false;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      lastX = startX;
+      lastTime = performance.now();
+      velocity = 0; // Se detiene al instante bajo tu dedo sin pegones
+    };
+
+    const onTouchMove = (e) => {
+      if (!isDragging) return;
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      const dx = currentX - lastX;
+      const totalDx = Math.abs(currentX - startX);
+      const totalDy = Math.abs(currentY - startY);
+
+      // Detecta si el usuario quiere mover el carrusel o bajar por la página
+      if (isHorizontalDrag === null) {
+        if (totalDx > 6 || totalDy > 6) {
+          isHorizontalDrag = totalDx > totalDy;
+        }
+      }
+
+      if (isHorizontalDrag) {
+        if (e.cancelable) e.preventDefault(); // Evita que la pantalla tiemble al deslizar productos
+        hasMoved = true;
+        const now = performance.now();
+        const dt = Math.max(now - lastTime, 8);
+
+        pos += dx;
+        normalizePosition();
+        track.style.transform = `translate3d(${pos}px, 0, 0)`;
+
+        // Calcula la fuerza del dedo para la inercia al soltar
+        velocity = (dx / dt) * 16.67;
+        lastX = currentX;
+        lastTime = now;
+      }
     };
 
     const onTouchEnd = () => {
-      isPointerDown = false;
-      // Damos 1.4 segundos libres para que la inercia del dedo en el celular termine suave
-      pauseUntil = performance.now() + 1400;
-      exactScroll = container.scrollLeft;
+      isDragging = false;
+      isHorizontalDrag = null;
     };
 
-    // 2. Eventos de Rueda / Trackpad
-    const onWheel = () => {
-      pauseUntil = performance.now() + 1000;
-      wrapScroll();
-      exactScroll = container.scrollLeft;
+    // ─── EVENTOS DE MOUSE Y TRACKPAD (PC) ───
+    const onMouseDown = (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      hasMoved = false;
+      startX = e.clientX;
+      lastX = startX;
+      lastTime = performance.now();
+      velocity = 0;
     };
 
-    // 3. Eventos de Mouse en PC (Pausa al pasar el cursor + arrastrar con clic)
+    const onMouseMove = (e) => {
+      if (!isDragging) return;
+      const currentX = e.clientX;
+      const dx = currentX - lastX;
+      if (Math.abs(currentX - startX) > 5) hasMoved = true;
+
+      const now = performance.now();
+      const dt = Math.max(now - lastTime, 8);
+
+      pos += dx;
+      normalizePosition();
+      track.style.transform = `translate3d(${pos}px, 0, 0)`;
+
+      velocity = (dx / dt) * 16.67;
+      lastX = currentX;
+      lastTime = now;
+    };
+
+    const onMouseUp = () => {
+      isDragging = false;
+    };
+
     const onMouseEnter = () => {
-      if (window.matchMedia('(hover: hover)').matches) {
-        isHovering = true;
-      }
+      if (window.matchMedia('(hover: hover)').matches) isHovering = true;
     };
 
     const onMouseLeave = () => {
       isHovering = false;
-      isPointerDown = false;
-      exactScroll = container.scrollLeft;
+      isDragging = false;
     };
 
-    const onMouseDown = (e) => {
-      isPointerDown = true;
-      startX = e.pageX - container.offsetLeft;
-      startScrollLeft = container.scrollLeft;
-    };
-
-    const onMouseMove = (e) => {
-      if (!isPointerDown) return;
-      e.preventDefault();
-      const x = e.pageX - container.offsetLeft;
-      const walk = (x - startX) * 1.5;
-      container.scrollLeft = startScrollLeft - walk;
-      wrapScroll();
-      exactScroll = container.scrollLeft;
-    };
-
-    const onMouseUp = () => {
-      if (isPointerDown) {
-        isPointerDown = false;
-        exactScroll = container.scrollLeft;
+    const onWheel = (e) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        e.preventDefault();
+        pos -= e.deltaX;
+        normalizePosition();
+        velocity = -e.deltaX * 0.3;
       }
     };
 
-    container.addEventListener('touchstart', onTouchStart, { passive: true });
-    container.addEventListener('touchend', onTouchEnd, { passive: true });
-    container.addEventListener('touchcancel', onTouchEnd, { passive: true });
-    container.addEventListener('wheel', onWheel, { passive: true });
-    container.addEventListener('mouseenter', onMouseEnter);
-    container.addEventListener('mouseleave', onMouseLeave);
-    container.addEventListener('mousedown', onMouseDown);
+    // Evita que al arrastrar con el mouse se abra WhatsApp por accidente
+    const onClickCapture = (e) => {
+      if (hasMoved) {
+        e.preventDefault();
+        e.stopPropagation();
+        hasMoved = false;
+      }
+    };
+
+    track.addEventListener('touchstart', onTouchStart, { passive: true });
+    track.addEventListener('touchmove', onTouchMove, { passive: false });
+    track.addEventListener('touchend', onTouchEnd, { passive: true });
+    track.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    track.addEventListener('mousedown', onMouseDown);
+    track.addEventListener('mouseenter', onMouseEnter);
+    track.addEventListener('mouseleave', onMouseLeave);
+    track.addEventListener('wheel', onWheel, { passive: false });
+    track.addEventListener('click', onClickCapture, true);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
 
-    let lastTime = performance.now();
-
-    const step = (now) => {
-      const dt = Math.min(now - lastTime, 50);
-      lastTime = now;
-
-      if (container) {
-        const isPaused = isPointerDown || isHovering || now < pauseUntil;
-
-        if (!isPaused) {
-          // Avanza a 45 píxeles por segundo sin importar los Hz de la pantalla
-          exactScroll += (45 * dt) / 1000;
-          container.scrollLeft = exactScroll;
-          wrapScroll();
-        } else {
-          // Mientras el usuario desliza manualmente o hay inercia, solo vigilamos los bordes
-          wrapScroll();
-          exactScroll = container.scrollLeft;
-        }
+    // ─── BUCLE DE ANIMACIÓN A 60/120 FPS CON FÍSICA SUAVE ───
+    const step = () => {
+      if (!isDragging) {
+        const targetVelocity = isHovering ? 0 : autoSpeed;
+        // Fricción suave: pasa de la velocidad de tu dedo a la velocidad automática sin frenazos
+        velocity += (targetVelocity - velocity) * 0.04;
+        pos += velocity;
+        normalizePosition();
+        track.style.transform = `translate3d(${pos}px, 0, 0)`;
       }
       animationFrameId = requestAnimationFrame(step);
     };
@@ -174,26 +216,19 @@ function LandingPage() {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      if (container) {
-        container.removeEventListener('touchstart', onTouchStart);
-        container.removeEventListener('touchend', onTouchEnd);
-        container.removeEventListener('touchcancel', onTouchEnd);
-        container.removeEventListener('wheel', onWheel);
-        container.removeEventListener('mouseenter', onMouseEnter);
-        container.removeEventListener('mouseleave', onMouseLeave);
-        container.removeEventListener('mousedown', onMouseDown);
-      }
+      track.removeEventListener('touchstart', onTouchStart);
+      track.removeEventListener('touchmove', onTouchMove);
+      track.removeEventListener('touchend', onTouchEnd);
+      track.removeEventListener('touchcancel', onTouchEnd);
+      track.removeEventListener('mousedown', onMouseDown);
+      track.removeEventListener('mouseenter', onMouseEnter);
+      track.removeEventListener('mouseleave', onMouseLeave);
+      track.removeEventListener('wheel', onWheel);
+      track.removeEventListener('click', onClickCapture, true);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
   }, [productos]);
-
-  // Botones de flechas por si el usuario prefiere tocarlos
-  const moverManual = (direccion) => {
-    const container = scrollRef.current;
-    if (!container) return;
-    container.scrollBy({ left: direccion * 310, behavior: 'smooth' });
-  };
 
   return (
     <div className="app-container">
@@ -211,10 +246,10 @@ function LandingPage() {
         <BookingWrapper />
       </section>
       
-      {/* 2. BANDA DE PRODUCTOS FLUIDA */}
+      {/* 2. BANDA DE PRODUCTOS CON MOTOR FÍSICO GPU */}
       {productos.length > 0 && (
-        <section id="productos" style={{ padding: '4rem 2rem', background: '#0a0a0a', borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <section id="productos" style={{ padding: '4rem 0', background: '#0a0a0a', borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a', overflow: 'hidden' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <h2 className="hero-title" style={{ margin: '0 0 0.5rem 0', fontSize: '2.5rem' }}>Nuestros Productos</h2>
@@ -222,40 +257,43 @@ function LandingPage() {
               </div>
 
               <div style={{ display: 'flex', gap: '0.8rem' }}>
-                <button onClick={() => moverManual(-1)} style={flechaBtnStyle} title="Anterior">←</button>
-                <button onClick={() => moverManual(1)} style={flechaBtnStyle} title="Siguiente">→</button>
+                <button onClick={() => controlsRef.current.boost?.(1)} style={flechaBtnStyle} title="Anterior">←</button>
+                <button onClick={() => controlsRef.current.boost?.(-1)} style={flechaBtnStyle} title="Siguiente">→</button>
               </div>
             </div>
+          </div>
             
+          {/* Ventana del carrusel */}
+          <div style={{ width: '100%', overflow: 'hidden', padding: '0.5rem 0 1.5rem 0' }}>
             <div 
-              ref={scrollRef}
-              className="productos-container"
+              ref={trackRef}
+              className="productos-gpu-track"
               style={{ 
                 display: 'flex', 
                 gap: '1.5rem', 
-                overflowX: 'auto', 
-                paddingBottom: '1.5rem', 
-                WebkitOverflowScrolling: 'touch',
-                cursor: 'grab'
+                width: 'max-content',
+                willChange: 'transform',
+                touchAction: 'pan-y',
+                cursor: 'grab',
+                userSelect: 'none',
+                WebkitUserSelect: 'none'
               }}
             >
               {productosInfinitos.map((prod, index) => (
                 <div 
                   key={`${prod.id}-${index}`} 
                   style={{ 
-                    minWidth: '280px', 
-                    maxWidth: '300px', 
+                    width: '290px', 
                     background: '#111', 
                     borderRadius: '14px', 
                     border: '1px solid #262626', 
                     overflow: 'hidden', 
                     flexShrink: 0, 
                     display: 'flex', 
-                    flexDirection: 'column',
-                    userSelect: 'none'
+                    flexDirection: 'column'
                   }}
                 >
-                  {/* Contenedor de imagen con fondo gris neutro (#404040) que se funde con tus fotos sin marcos raros */}
+                  {/* Contenedor de imagen limpio e integrado */}
                   <div style={{ 
                     height: '250px', 
                     background: '#404040', 
@@ -293,7 +331,7 @@ function LandingPage() {
                         target="_blank" 
                         rel="noreferrer"
                         className="btn-pedir"
-                        onClick={(e) => e.stopPropagation()}
+                        draggable="false"
                       >
                         Pedir
                       </a>
@@ -305,24 +343,8 @@ function LandingPage() {
           </div>
           
           <style>{`
-            .productos-container {
-              scroll-behavior: auto !important;
-              scrollbar-width: thin;
-              scrollbar-color: var(--gold) #161616;
-            }
-            .productos-container:active {
+            .productos-gpu-track:active {
               cursor: grabbing;
-            }
-            .productos-container::-webkit-scrollbar {
-              height: 6px;
-            }
-            .productos-container::-webkit-scrollbar-track {
-              background: #161616;
-              border-radius: 4px;
-            }
-            .productos-container::-webkit-scrollbar-thumb {
-              background: var(--gold);
-              border-radius: 4px;
             }
             
             .btn-pedir {
