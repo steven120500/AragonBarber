@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; 
+import { useState, useEffect, useRef } from 'react'; 
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Nav from './components/layout/Navbar'; 
 import Hero from './components/layout/Hero';
@@ -19,6 +19,7 @@ import GestionProductos from './pages/admin/GestionProductos';
 // ESTE ES EL LANDING PAGE QUE REALMENTE ESTÁ LEYENDO TU PÁGINA
 function LandingPage() {
   const [productos, setProductos] = useState([]);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     const fetchProductos = async () => {
@@ -32,6 +33,61 @@ function LandingPage() {
     };
     fetchProductos();
   }, []);
+
+  // ─── AUTOSCROLL INFINITO QUE PERMITE SCROLL MANUAL ───
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || productos.length === 0) return;
+
+    let animationFrameId;
+    let isInteracting = false;
+
+    const stopScroll = () => { isInteracting = true; };
+    const startScroll = () => { isInteracting = false; };
+
+    // Detectar cuando el usuario toca la pantalla (móvil) o usa el mouse (PC)
+    container.addEventListener('mouseenter', stopScroll);
+    container.addEventListener('mouseleave', startScroll);
+    container.addEventListener('touchstart', stopScroll, { passive: true });
+    container.addEventListener('touchend', startScroll, { passive: true });
+
+    const step = () => {
+      if (!isInteracting && container) {
+        container.scrollLeft += 0.8; // Velocidad del autoscroll
+
+        // Bucle infinito perfecto al llegar a la mitad de los elementos duplicados
+        if (container.scrollLeft >= container.scrollWidth / 2) {
+          container.scrollLeft = 0;
+        }
+      }
+      animationFrameId = requestAnimationFrame(step);
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      if (container) {
+        container.removeEventListener('mouseenter', stopScroll);
+        container.removeEventListener('mouseleave', startScroll);
+        container.removeEventListener('touchstart', stopScroll);
+        container.removeEventListener('touchend', startScroll);
+      }
+    };
+  }, [productos]);
+
+  // Funciones para los botones de flechas laterales
+  const scrollLeftBtn = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRightBtn = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="app-container">
@@ -49,19 +105,38 @@ function LandingPage() {
         <BookingWrapper />
       </section>
       
-      {/* 2. NUEVA BANDA DE PRODUCTOS CON ANIMACIÓN CSS NATIVA (Móvil y PC) */}
+      {/* 2. NUEVA BANDA DE PRODUCTOS CON AUTOSCROLL Y SCROLL MANUAL */}
       {productos.length > 0 && (
-        <section id="productos" style={{ padding: '4rem 0', background: '#0a0a0a', borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a', overflow: 'hidden' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
-            <h2 className="hero-title" style={{ textAlign: 'center', margin: '0 0 0.5rem 0', fontSize: '2.5rem' }}>Nuestros Productos</h2>
-            <p className="section-sub" style={{ textAlign: 'center', margin: '0 auto 3rem' }}>Lleva la calidad de la barbería a tu casa.</p>
-          </div>
-          
-          {/* Contenedor del carrusel animado */}
-          <div className="marquee-wrapper">
-            <div className="marquee-track">
-              {/* Duplicamos los productos para lograr el efecto infinito nativo */}
-              {[...productos, ...productos, ...productos].map((prod, index) => (
+        <section id="productos" style={{ padding: '4rem 2rem', background: '#0a0a0a', borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 className="hero-title" style={{ margin: '0 0 0.5rem 0', fontSize: '2.5rem' }}>Nuestros Productos</h2>
+                <p className="section-sub" style={{ margin: 0 }}>Lleva la calidad de la barbería a tu casa. Desliza libremente o deja que se mueva solo.</p>
+              </div>
+              
+              {/* Botones de flechas */}
+              <div style={{ display: 'flex', gap: '0.8rem' }}>
+                <button onClick={scrollLeftBtn} style={flechaBtnStyle} title="Anterior">←</button>
+                <button onClick={scrollRightBtn} style={flechaBtnStyle} title="Siguiente">→</button>
+              </div>
+            </div>
+            
+            {/* Contenedor habilitado para scroll táctil y manual */}
+            <div 
+              ref={scrollRef}
+              className="productos-container"
+              style={{ 
+                display: 'flex', 
+                gap: '1.5rem', 
+                overflowX: 'auto', 
+                paddingBottom: '1.5rem', 
+                scrollBehavior: 'smooth',
+                WebkitOverflowScrolling: 'touch',
+                cursor: 'grab'
+              }}
+            >
+              {[...productos, ...productos].map((prod, index) => (
                 <div key={`${prod.id}-${index}`} style={{ minWidth: '280px', maxWidth: '300px', background: '#111', borderRadius: '12px', border: '1px solid #333', overflow: 'hidden', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
                   <div style={{ height: '220px', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {prod.imagen_url ? (
@@ -92,32 +167,16 @@ function LandingPage() {
           </div>
           
           <style>{`
-            .marquee-wrapper {
-              width: 100%;
-              overflow: hidden;
-              position: relative;
+            .productos-container::-webkit-scrollbar {
+              height: 8px;
             }
-
-            .marquee-track {
-              display: flex;
-              gap: 1.5rem;
-              width: max-content;
-              animation: scrollMarquee 35s linear infinite;
+            .productos-container::-webkit-scrollbar-track {
+              background: #111;
+              border-radius: 4px;
             }
-
-            /* Se detiene al colocar el mouse encima en computadora o al mantener presionado en el celular */
-            .marquee-wrapper:hover .marquee-track,
-            .marquee-wrapper:active .marquee-track {
-              animation-play-state: paused;
-            }
-
-            @keyframes scrollMarquee {
-              0% {
-                transform: translateX(0);
-              }
-              100% {
-                transform: translateX(calc(-33.333% - 1rem));
-              }
+            .productos-container::-webkit-scrollbar-thumb {
+              background: var(--gold);
+              border-radius: 4px;
             }
             
             .btn-pedir {
@@ -153,6 +212,21 @@ function LandingPage() {
     </div>
   );
 }
+
+const flechaBtnStyle = {
+  background: '#151515',
+  border: '1px solid #333',
+  color: 'var(--gold)',
+  width: '45px',
+  height: '45px',
+  borderRadius: '50%',
+  fontSize: '1.2rem',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'all 0.2s ease'
+};
 
 export default function App() {
   return (
