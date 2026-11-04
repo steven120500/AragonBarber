@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; // <-- IMPORTANTE
+import { useState, useEffect } from 'react'; 
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Nav from './components/layout/Navbar'; 
 import Hero from './components/layout/Hero';
@@ -8,7 +8,7 @@ import Reseñas from './components/layout/Reseñas';
 import Nosotros from './components/layout/Nosotros';
 import GestionResenas from './pages/admin/GestionResenas'; 
 import CancelarCita from './pages/CancelarCita'; 
-import { supabase } from './services/supabaseClient'; // <-- IMPORTANTE PARA LOS PRODUCTOS
+import { supabase } from './services/supabaseClient'; 
 
 // Vistas del Administrador
 import Login from './pages/admin/Login'; 
@@ -75,7 +75,7 @@ function LandingPage() {
                       href={`https://wa.me/50683678788?text=${encodeURIComponent(`Hola, me interesa este producto: ${prod.nombre}\n\n📝 Descripción: ${prod.descripcion}\n💰 Precio: ₡${prod.precio}`)}`} 
                       target="_blank" 
                       rel="noreferrer"
-                      style={{ background: '#25D366', color: '#000', padding: '0.6rem 1.2rem', borderRadius: '50px', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                      className="btn-pedir"
                     >
                       Pedir
                     </a>
@@ -88,6 +88,27 @@ function LandingPage() {
           <style>{`
             #productos div::-webkit-scrollbar { display: none; }
             #productos div { -ms-overflow-style: none; scrollbar-width: none; }
+            
+            .btn-pedir {
+              background: #EFEFD4;
+              color: #000;
+              padding: 0.6rem 1.2rem;
+              border-radius: 50px;
+              text-decoration: none;
+              font-weight: bold;
+              font-size: 0.85rem;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: background 0.3s ease, color 0.3s ease;
+              border: 1px solid transparent;
+            }
+
+            .btn-pedir:hover {
+              background: #000;
+              color: #fff;
+              border: 1px solid #EFEFD4;
+            }
           `}</style>
         </section>
       )}
