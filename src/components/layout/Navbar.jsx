@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, LogOut, Calendar, DollarSign, User, Star } from 'lucide-react';
+import { Menu, X, LogOut, Calendar, DollarSign, User, Star, ShoppingCart } from 'lucide-react'; // 👈 Agregamos ShoppingCart
 import { supabase } from '../../services/supabaseClient';
 
 export default function Navbar() {
@@ -95,6 +95,8 @@ export default function Navbar() {
               
               <a href="/#/admin/citas" onClick={toggleNav} style={adminLinkStyle}><Calendar size={20} /> Citas</a>
               <a href="/#/admin/finanzas" onClick={toggleNav} style={adminLinkStyle}><DollarSign size={20} /> Finanzas</a>
+              {/* 👈 NUEVO ENLACE A PRODUCTOS */}
+              <a href="/#/admin/productos" onClick={toggleNav} style={adminLinkStyle}><ShoppingCart size={20} /> Productos</a> 
               <a href="/#/admin/resenas" onClick={toggleNav} style={adminLinkStyle}><Star size={20} /> Reseñas</a>
               
               <div style={{ width: '100%', height: '1px', background: '#222', margin: '1rem 0' }}></div>
