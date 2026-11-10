@@ -1,4 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { MapPin, Scissors, Award, HeartHandshake } from 'lucide-react';
+import './nosotros.css';
+
+const pilares = [
+  { Icon: Scissors, titulo: 'Calidad', texto: 'En cada detalle' },
+  { Icon: Award, titulo: 'Profesionalismo', texto: 'Técnica y formación' },
+  { Icon: HeartHandshake, titulo: 'Confianza', texto: 'Trato cercano' },
+];
 
 export default function Nosotros() {
   const [isVisible, setIsVisible] = useState(false);
@@ -9,6 +17,7 @@ export default function Nosotros() {
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
+          observer.disconnect();
         }
       },
       { threshold: 0.15 }
@@ -21,53 +30,44 @@ export default function Nosotros() {
   }, []);
 
   return (
-    <section id="nosotros" ref={sectionRef} style={{ background: 'transparent', padding: '6rem 2rem', borderTop: '1px solid #111' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: '4rem', alignItems: 'center' }}>
-        
+    <section id="nosotros" ref={sectionRef} className={`ns ${isVisible ? 'is-visible' : ''}`}>
+      <div className="ns-grid">
+
         {/* COLUMNA IZQUIERDA: IMAGEN */}
-        <div 
-          style={{ 
-            flex: '1 1 400px', 
-            position: 'relative',
-            opacity: isVisible ? 1 : 0,
-            transform: isVisible ? 'translateX(0)' : 'translateX(-30px)',
-            transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
-          }}
-        >
-          {/* Marco decorativo dorado detrás de la imagen */}
-          <div style={{ position: 'absolute', top: '-15px', left: '-15px', right: '15px', bottom: '15px', border: '1px solid var(--gold)', borderRadius: '12px', zIndex: 0 }}></div>
-          
-          <img 
-            // Puedes cambiar esta imagen por una foto real de José trabajando
-            src="https://images.unsplash.com/photo-1593702275687-f8b402bf1fb5?q=80&w=1200&auto=format&fit=crop" 
-            alt="José Aragón - Aragon Barber Studio" 
-            style={{ width: '100%', height: 'auto', borderRadius: '12px', position: 'relative', zIndex: 1, boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }}
-          />
+        <div className="ns-media ns-reveal" style={{ '--d': '0s' }}>
+          <div className="ns-frame" aria-hidden="true" />
+          <div className="ns-photo">
+            <img
+              // Puedes cambiar esta imagen por una foto real de José trabajando
+              src="https://images.unsplash.com/photo-1593702275687-f8b402bf1fb5?q=80&w=1200&auto=format&fit=crop"
+              alt="José Aragón - Aragon Barber Studio"
+              loading="lazy"
+            />
+            <div className="ns-photo-card">
+              <span className="ns-photo-name">José Aragón Corrales</span>
+              <span className="ns-photo-role">Fundador · Barbero</span>
+            </div>
+          </div>
+          <div className="ns-badge">
+            <MapPin size={15} />
+            Grecia, Costa Rica
+          </div>
         </div>
 
         {/* COLUMNA DERECHA: TEXTO (Biografía resumida) */}
-        <div 
-          style={{ 
-            flex: '1 1 500px',
-            opacity: isVisible ? 1 : 0,
-            transform: isVisible ? 'translateX(0)' : 'translateX(30px)',
-            transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ width: '40px', height: '1px', background: 'var(--gold)' }}></div>
-            <span style={{ color: 'var(--gold)', letterSpacing: '0.2em', fontSize: '0.8rem', fontWeight: 'bold' }}>
-              NUESTRA HISTORIA
-            </span>
+        <div className="ns-content">
+          <div className="ns-eyebrow ns-reveal" style={{ '--d': '0.1s' }}>
+            <i aria-hidden="true" /> Nuestra historia
           </div>
 
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.8rem', color: 'var(--cream)', marginBottom: '1.5rem', lineHeight: '1.2' }}>
-            Detrás de cada corte <span style={{ color: 'var(--grey)', display: 'block', fontSize: '2rem' }}>hay una historia.</span>
+          <h2 className="ns-title ns-reveal" style={{ '--d': '0.18s' }}>
+            Detrás de cada corte
+            <em>hay una historia.</em>
           </h2>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', color: '#888', fontSize: '1.05rem', lineHeight: '1.7' }}>
-            <p>
-              Soy <strong>José Aragón Corrales</strong>, orgullosamente de Grecia, y desde muy joven aprendí que los grandes sueños se construyen con disciplina y constancia. 
+          <div className="ns-text ns-reveal" style={{ '--d': '0.26s' }}>
+            <p className="ns-lead">
+              Soy <strong>José Aragón Corrales</strong>, orgullosamente de Grecia, y desde muy joven aprendí que los grandes sueños se construyen con disciplina y constancia.
             </p>
             <p>
               Tras una valiosa etapa profesional y un viaje al extranjero en 2025 que cambió mi perspectiva, la vida me llevó de vuelta a mis raíces. Fue entonces cuando decidí transformar lo que comenzó como un pasatiempo —cortando el cabello a mis familiares— en mi verdadera vocación.
@@ -75,11 +75,27 @@ export default function Nosotros() {
             <p>
               Me formé profesionalmente y tuve el honor de pulir mi técnica en grandes barberías locales, entendiendo que este arte va mucho más allá de las tijeras. Hoy, mi objetivo es ofrecer un servicio basado en la calidad, el profesionalismo y la confianza.
             </p>
-            <p style={{ color: 'var(--cream)', fontStyle: 'italic', borderLeft: '2px solid var(--gold)', paddingLeft: '1rem', marginTop: '1rem' }}>
-              "Este proyecto representa sacrificio, fe y el deseo constante de superación. A quienes han creído en mí: gracias. Esto apenas comienza."
-            </p>
           </div>
-          
+
+          <ul className="ns-pillars ns-reveal" style={{ '--d': '0.34s' }}>
+            {pilares.map(({ Icon, titulo, texto }) => (
+              <li key={titulo}>
+                <span className="ns-pillar-icon"><Icon size={18} /></span>
+                <span>
+                  <strong>{titulo}</strong>
+                  <small>{texto}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <figure className="ns-quote ns-reveal" style={{ '--d': '0.42s' }}>
+            <span className="ns-quote-mark" aria-hidden="true">“</span>
+            <blockquote>
+              Este proyecto representa sacrificio, fe y el deseo constante de superación. A quienes han creído en mí: gracias. Esto apenas comienza.
+            </blockquote>
+            <figcaption>— José Aragón</figcaption>
+          </figure>
         </div>
       </div>
     </section>

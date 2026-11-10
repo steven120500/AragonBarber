@@ -11,6 +11,8 @@ import Nosotros from './components/layout/Nosotros';
 import CancelarCita from './pages/CancelarCita'; 
 import { supabase } from './services/supabaseClient';
 import { formatearPrecio } from './utils/formato';
+import { ArrowLeft, ArrowRight, MessageCircle } from 'lucide-react';
+import './components/layout/productos.css';
 
 // Vistas del Administrador (se cargan solo cuando se visitan, así la página
 // principal no descarga las librerías de PDF y gráficos)
@@ -259,126 +261,60 @@ function LandingPage() {
       
       {/* 2. BANDA DE PRODUCTOS CON MOTOR FÍSICO GPU */}
       {productos.length > 0 && (
-        <section id="productos" style={{ padding: '4rem 0', background: '#0a0a0a', borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a', overflow: 'hidden' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
-                <h2 className="hero-title" style={{ margin: '0 0 0.5rem 0', fontSize: '2.5rem' }}>Nuestros Productos</h2>
-                <p className="section-sub" style={{ margin: 0 }}>Lleva la calidad de la barbería a tu casa. Desliza libremente o deja que se mueva solo.</p>
-              </div>
+        <section id="productos" className="pc-section">
+          <div className="pc-head">
+            <div>
+              <span className="pc-eyebrow"><i aria-hidden="true" /> Minitienda</span>
+              <h2 className="pc-title">Nuestros <em>productos</em></h2>
+              <p className="pc-sub">Lleva la calidad de la barbería a tu casa. Desliza libremente o deja que se mueva solo.</p>
+            </div>
 
-              <div style={{ display: 'flex', gap: '0.8rem' }}>
-                <button onClick={() => controlsRef.current.boost?.(1)} style={flechaBtnStyle} title="Anterior">←</button>
-                <button onClick={() => controlsRef.current.boost?.(-1)} style={flechaBtnStyle} title="Siguiente">→</button>
-              </div>
+            <div className="pc-arrows">
+              <button type="button" onClick={() => controlsRef.current.boost?.(1)} className="pc-arrow" aria-label="Productos anteriores">
+                <ArrowLeft size={18} />
+              </button>
+              <button type="button" onClick={() => controlsRef.current.boost?.(-1)} className="pc-arrow" aria-label="Más productos">
+                <ArrowRight size={18} />
+              </button>
             </div>
           </div>
-            
+
           {/* Ventana del carrusel */}
-          <div style={{ width: '100%', overflow: 'hidden', padding: '0.5rem 0 1.5rem 0' }}>
-            <div 
-              ref={trackRef}
-              className="productos-gpu-track"
-              style={{ 
-                display: 'flex', 
-                width: 'max-content',
-                willChange: 'transform',
-                touchAction: 'pan-y',
-                cursor: 'grab',
-                userSelect: 'none',
-                WebkitUserSelect: 'none'
-              }}
-            >
+          <div className="pc-viewport">
+            <div ref={trackRef} className="productos-gpu-track pc-track">
               {productosInfinitos.map((prod, index) => (
-                <div 
-                  key={`${prod.id}-${index}`} 
-                  style={{ 
-                    width: '290px', 
-                    marginRight: '1.5rem',
-                    background: '#111', 
-                    borderRadius: '14px', 
-                    border: '1px solid #262626', 
-                    overflow: 'hidden', 
-                    flexShrink: 0, 
-                    display: 'flex', 
-                    flexDirection: 'column'
-                  }}
+                <article
+                  key={`${prod.id}-${index}`}
+                  className="pc-card"
+                  aria-hidden={index >= baseList.length ? 'true' : undefined}
                 >
-                  {/* Contenedor de imagen limpio e integrado */}
-                  <div style={{ 
-                    height: '250px', 
-                    background: '#404040', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    overflow: 'hidden', 
-                    position: 'relative' 
-                  }}>
+                  <div className="pc-media">
                     {prod.imagen_url ? (
-                      <img 
-                        src={prod.imagen_url} 
-                        alt={prod.nombre} 
-                        draggable="false"
-                        style={{ 
-                          width: '100%', 
-                          height: '100%', 
-                          objectFit: 'contain',
-                          pointerEvents: 'none'
-                        }} 
-                      />
+                      <img src={prod.imagen_url} alt={prod.nombre} draggable="false" loading="lazy" />
                     ) : (
-                      <span style={{ fontSize: '4rem' }}>💈</span>
+                      <span className="pc-placeholder">💈</span>
                     )}
+                    <span className="pc-price">{formatearPrecio(prod.precio)}</span>
                   </div>
 
-                  <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                    <h3 style={{ fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '0.5rem', fontFamily: "'Playfair Display', serif" }}>{prod.nombre}</h3>
-                    <p style={{ color: 'var(--grey)', fontSize: '0.9rem', marginBottom: '1.5rem', flex: 1 }}>{prod.descripcion}</p>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-                      <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#fff' }}>{formatearPrecio(prod.precio)}</span>
-                      <a 
-                        href={`https://wa.me/50683678788?text=${encodeURIComponent(`Hola, me interesa este producto: ${prod.nombre}\n\n📝 Descripción: ${prod.descripcion}\n💰 Precio: ${formatearPrecio(prod.precio)}`)}`} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="btn-pedir"
-                        draggable="false"
-                      >
-                        Pedir
-                      </a>
-                    </div>
+                  <div className="pc-body">
+                    <h3 className="pc-name">{prod.nombre}</h3>
+                    <p className="pc-desc">{prod.descripcion}</p>
+                    <a
+                      href={`https://wa.me/50683678788?text=${encodeURIComponent(`Hola, me interesa este producto: ${prod.nombre}\n\n📝 Descripción: ${prod.descripcion}\n💰 Precio: ${formatearPrecio(prod.precio)}`)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="pc-cta"
+                      draggable="false"
+                      tabIndex={index >= baseList.length ? -1 : undefined}
+                    >
+                      <MessageCircle size={16} /> Pedir por WhatsApp
+                    </a>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           </div>
-          
-          <style>{`
-            .productos-gpu-track:active {
-              cursor: grabbing;
-            }
-            
-            .btn-pedir {
-              background: #EFEFD4;
-              color: #000;
-              padding: 0.6rem 1.2rem;
-              border-radius: 50px;
-              text-decoration: none;
-              font-weight: bold;
-              font-size: 0.85rem;
-              display: inline-flex;
-              align-items: center;
-              gap: 0.5rem;
-              transition: background 0.3s ease, color 0.3s ease;
-              border: 1px solid transparent;
-            }
-
-            .btn-pedir:hover {
-              background: #000;
-              color: #fff;
-              border: 1px solid #EFEFD4;
-            }
-          `}</style>
         </section>
       )}
 
@@ -391,21 +327,6 @@ function LandingPage() {
     </div>
   );
 }
-
-const flechaBtnStyle = {
-  background: '#151515',
-  border: '1px solid #333',
-  color: 'var(--gold)',
-  width: '42px',
-  height: '42px',
-  borderRadius: '50%',
-  fontSize: '1.1rem',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  transition: 'all 0.2s ease'
-};
 
 export default function App() {
   return (
