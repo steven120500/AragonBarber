@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import BookingForm from './BookingForm';
+import { SERVICIOS } from '../../utils/servicios';
 
 export default function BookingWrapper() {
   const [step, setStep] = useState('selection');
@@ -7,11 +8,19 @@ export default function BookingWrapper() {
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef(null);
 
-  const services = [
-    { id: 'Corte', name: 'Corte', duration: '1h', price: '4000', delay: '0.1s', direction: 'translateX(-50px)' },
-    { id: 'Barba', name: 'Barba', duration: '30min', price: '2000', delay: '0.3s', direction: 'translateY(50px)' },
-    { id: 'Combo', name: 'Corte y Barba', duration: '1h', price: '6000', delay: '0.5s', direction: 'translateX(50px)' }
+  // Precios y duraciones vienen de utils/servicios.js (una sola fuente para toda la app)
+  const animaciones = [
+    { delay: '0.1s', direction: 'translateX(-50px)' },
+    { delay: '0.3s', direction: 'translateY(50px)' },
+    { delay: '0.5s', direction: 'translateX(50px)' },
   ];
+  const services = SERVICIOS.map((serv, i) => ({
+    id: serv.id,
+    name: serv.nombre,
+    duration: serv.duracion >= 60 ? `${serv.duracion / 60}h` : `${serv.duracion}min`,
+    price: String(serv.precio),
+    ...animaciones[i % animaciones.length],
+  }));
 
   // Lógica para detectar cuando el usuario hace scroll y ve esta sección
   useEffect(() => {
@@ -24,13 +33,10 @@ export default function BookingWrapper() {
       { threshold: 0.1 } // Se activa cuando el 10% del componente es visible
     );
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
+    const nodo = sectionRef.current;
+    if (nodo) observer.observe(nodo);
 
-    return () => {
-      if (sectionRef.current) observer.unobserve(sectionRef.current);
-    };
+    return () => observer.disconnect();
   }, []);
 
   return (

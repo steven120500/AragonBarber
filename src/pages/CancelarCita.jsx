@@ -4,7 +4,8 @@ import { supabase } from '../services/supabaseClient';
 
 export default function CancelarCita() {
   const [searchParams] = useSearchParams();
-  const citaId = searchParams.get('id');
+  // Código secreto de la cita (los enlaces viejos con ?id= ya no son válidos por seguridad)
+  const citaToken = searchParams.get('token');
   const navigate = useNavigate();
   
   // Nuevos estados: cargando -> confirmando -> procesando -> exito | error
@@ -12,25 +13,24 @@ export default function CancelarCita() {
 
   useEffect(() => {
     // Si no hay ID en la URL, error directo
-    if (!citaId) {
+    if (!citaToken || !/^[0-9a-f-]{36}$/i.test(citaToken)) {
       setEstado('error');
       return;
     }
 
     const verificarCita = async () => {
       // 1. Solo verificamos que exista, no la cancelamos todavía
-      const { data: citaActual, error: errorFetch } = await supabase
-        .from('citas')
-        .select('estado')
-        .eq('id', citaId)
-        .single();
+      const { data: estadoActual, error: errorFetch } = await supabase.rpc('estado_cita', { p_token: citaToken });
 
-      if (errorFetch || !citaActual) {
+      if (errorFetch || !estadoActual) {
         setEstado('error');
         return;
       }
 
-      if (citaActual.estado === 'Cancelada') {
+      if (estadoActual === 'Completada') {
+        // Una cita ya atendida y cobrada no se puede cancelar (borraría el ingreso de Finanzas)
+        setEstado('atendida');
+      } else if (estadoActual === 'Cancelada') {
         // Si ya estaba cancelada de antes, mostramos éxito
         setEstado('exito');
       } else {
@@ -40,19 +40,19 @@ export default function CancelarCita() {
     };
 
     verificarCita();
-  }, [citaId]);
+  }, [citaToken]);
 
   // Función que se ejecuta SOLO si el cliente hace clic en "Sí, cancelar"
   const ejecutarCancelacion = async () => {
     setEstado('procesando');
 
-    const { error: errorUpdate } = await supabase
-      .from('citas')
-      .update({ estado: 'Cancelada' })
-      .eq('id', citaId);
+    // La función solo cancela citas pendientes; devuelve el estado final
+    const { data: estadoFinal, error: errorUpdate } = await supabase.rpc('cancelar_cita', { p_token: citaToken });
 
-    if (errorUpdate) {
+    if (errorUpdate || !estadoFinal) {
       setEstado('error');
+    } else if (estadoFinal === 'Completada') {
+      setEstado('atendida');
     } else {
       setEstado('exito');
     }
@@ -105,6 +105,22 @@ export default function CancelarCita() {
             <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#ff4444', fontSize: '2.5rem', margin: '0 0 1rem 0' }}>Cita Cancelada</h2>
             <p style={{ color: 'var(--grey)', marginBottom: '2.5rem', lineHeight: '1.6', fontSize: '0.95rem' }}>
               Tu reserva ha sido cancelada exitosamente y el espacio ha sido liberado en nuestra agenda. Esperamos verte pronto.
+            </p>
+            <button onClick={() => navigate('/')} style={{ background: 'var(--gold)', color: '#000', padding: '1rem 2rem', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', width: '100%' }}>
+              Volver al inicio
+            </button>
+          </div>
+        )}
+
+        {/* PANTALLA 3B: LA CITA YA FUE ATENDIDA */}
+        {estado === 'atendida' && (
+          <div style={{ animation: 'fadeInUp 0.5s ease' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(0, 200, 81, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <span style={{ fontSize: '1.5rem', color: '#00C851' }}>✓</span>
+            </div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#fff', fontSize: '2.2rem', margin: '0 0 1rem 0' }}>Cita ya atendida</h2>
+            <p style={{ color: 'var(--grey)', marginBottom: '2.5rem', lineHeight: '1.6', fontSize: '0.95rem' }}>
+              Esta cita ya fue realizada, por lo que no es posible cancelarla. ¡Gracias por visitarnos!
             </p>
             <button onClick={() => navigate('/')} style={{ background: 'var(--gold)', color: '#000', padding: '1rem 2rem', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', width: '100%' }}>
               Volver al inicio

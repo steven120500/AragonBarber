@@ -14,13 +14,10 @@ export default function Nosotros() {
       { threshold: 0.15 }
     );
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
+    const nodo = sectionRef.current;
+    if (nodo) observer.observe(nodo);
 
-    return () => {
-      if (sectionRef.current) observer.unobserve(sectionRef.current);
-    };
+    return () => observer.disconnect();
   }, []);
 
   return (

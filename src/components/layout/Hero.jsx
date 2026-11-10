@@ -1,125 +1,154 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import './hero.css';
 
-export default function Hero() {
-  const [currentSet, setCurrentSet] = useState(0);
+const img = (id) => `https://images.unsplash.com/${id}?q=75&w=1920&auto=format&fit=crop`;
 
-  // Textos reducidos y más directos
-  const imageSets = [
-  
-    {
-      label: "LA TÉCNICA",
-      desc: "Precisión milimétrica en cada detalle.",
-      images: [
-        "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=1200&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1590540179852-2110a54f813a?q=80&w=1200&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1512690118296-f9495fe76a16?q=80&w=1200&auto=format&fit=crop"
-      ]
-    },
-    {
-      label: "EL ESTILO",
-      desc: "Un corte diseñado para tu personalidad.",
-      images: [
-        "https://images.unsplash.com/photo-1512864084360-7c0c4d0a081d?q=80&w=1200&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1621605815971-fbc98d665033?q=80&w=1200&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=1200&auto=format&fit=crop"
-      ]
-    }
-  ];
+const slides = [
+  {
+    label: 'La técnica',
+    desc: 'Precisión milimétrica en cada detalle.',
+    image: img('photo-1585747860715-2ba37e788b70'),
+  },
+  {
+    label: 'El estilo',
+    desc: 'Un corte diseñado para tu personalidad.',
+    image: img('photo-1621605815971-fbc98d665033'),
+  },
+  {
+    label: 'El detalle',
+    desc: 'Acabados limpios que hablan por ti.',
+    image: img('photo-1503951914875-452162b0f3f1'),
+  },
+];
 
+const marquee = ['Cortes', 'Barba', 'Precisión', 'Estilo', 'Detalle', 'Aragon Barber Studio'];
+
+const irA = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+
+export default function Hero({ ready = true }) {
+  const [current, setCurrent] = useState(0);
+  const mediaRef = useRef(null);
+
+  // Precarga las imágenes para que el cambio de slide no parpadee
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSet((prev) => (prev === imageSets.length - 1 ? 0 : prev + 1));
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [imageSets.length]);
+    slides.forEach((s) => { const i = new Image(); i.src = s.image; });
+  }, []);
 
-  const handleReservarClick = (e) => {
-    e.preventDefault();
-    if (window.location.hash !== '#/' && window.location.hash !== '') {
-      window.location.href = `/#/reservar`;
-    } else {
-      document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
+  // Parallax suave del fondo al hacer scroll (solo mientras el hero está visible)
+  useEffect(() => {
+    const media = mediaRef.current;
+    if (!media || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = null;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const y = window.scrollY;
+        if (y < window.innerHeight * 1.2) {
+          media.style.transform = `translate3d(0, ${y * 0.3}px, 0)`;
+        }
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const siguiente = () => setCurrent((c) => (c + 1) % slides.length);
 
   return (
-    // Añadido marginBottom para dar más espacio antes de la sección "Agenda tu cita"
-    <section className="hero" style={{ marginBottom: '8rem' }}>
-      
-      <div className="hero-left reveal visible">
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', animation: 'fadeIn 0.5s ease-in' }}>
-          <div style={{ width: '40px', height: '1px', background: 'var(--gold)' }}></div>
-          <span style={{ color: 'var(--gold)', letterSpacing: '0.2em', fontSize: '0.8rem', fontWeight: 'bold' }}>
-            {imageSets[currentSet].label}
-          </span>
+    <>
+      <header id="inicio" className={`hx ${ready ? 'is-ready' : ''}`}>
+        {/* FONDO: slides con zoom lento y fundido */}
+        <div className="hx-media" ref={mediaRef} aria-hidden="true">
+          {slides.map((s, i) => (
+            <div
+              key={s.image}
+              className={`hx-slide ${i === current ? 'is-active' : ''}`}
+              style={{ backgroundImage: `url(${s.image})` }}
+            />
+          ))}
         </div>
+        <div className="hx-shade" aria-hidden="true" />
 
-        <h1 className="hero-title">
-          El estilo <br />
-          <span className="hero-title">siempre primero</span>
-        </h1>
-       
-        <p key={currentSet} style={{ color: 'var(--grey)', fontSize: '1.1rem', lineHeight: '1.6', margin: '1.5rem 0 2.5rem 0', animation: 'fadeInUp 0.8s ease forwards', maxWidth: '400px' }}>
-          {imageSets[currentSet].desc}
-        </p>
+        {/* CONTENIDO */}
+        <div className="hx-content">
+          <div className="hx-eyebrow hx-fade" style={{ '--d': '0.1s' }}>
+            <span className="hx-eyebrow-line" />
+            <span key={current} className="hx-eyebrow-text">{slides[current].label}</span>
+          </div>
 
-        <div className="hero-actions" style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <button onClick={handleReservarClick} className="btn-primary hero-btn" style={{ cursor: 'pointer' }}>
-            Reservar Cita
-          </button>
-          
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {imageSets.map((_, idx) => (
-              <div 
-                key={idx}
-                onClick={() => setCurrentSet(idx)}
-                style={{
-                  width: currentSet === idx ? '30px' : '10px',
-                  height: '3px',
-                  background: currentSet === idx ? 'var(--gold)' : '#333',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-              />
-            ))}
+          <h1 className="hx-title">
+            <span className="hx-line"><span style={{ '--d': '0.2s' }}>El estilo</span></span>
+            <span className="hx-line"><span style={{ '--d': '0.32s' }}><em>siempre</em> primero</span></span>
+          </h1>
+
+          <div className="hx-fade" style={{ '--d': '0.55s' }}>
+            <p key={current} className="hx-sub">{slides[current].desc}</p>
+          </div>
+
+          <div className="hx-ctas hx-fade" style={{ '--d': '0.7s' }}>
+            <button type="button" onClick={() => irA('reservar')} className="hx-btn hx-btn--solid">
+              Reservar cita
+              <span className="hx-btn-icon" aria-hidden="true">→</span>
+            </button>
+            <button type="button" onClick={() => irA('nosotros')} className="hx-btn hx-btn--ghost">
+              Conócenos
+            </button>
           </div>
         </div>
-      </div>
 
-      <div className="hero-right">
-        <div className="triptych-stage">
-          {imageSets.map((set, setIndex) => (
-            <div 
-              key={setIndex} 
-              className={`triptych-set ${setIndex === currentSet ? 'active' : ''}`}
-            >
-              <div className="triptych-panel-wrapper">
-                {set.images.map((img, imgIndex) => (
-                  <div
-                    key={imgIndex}
-                    className="triptych-panel"
-                    style={{ backgroundImage: `url(${img})` }}
-                  />
-                ))}
-              </div>
+        {/* BARRA INFERIOR: progreso de slides + contador + indicador de scroll */}
+        <div className="hx-bottom hx-fade" style={{ '--d': '0.9s' }}>
+          <div className="hx-progress" role="tablist" aria-label="Imágenes destacadas">
+            {slides.map((s, i) => (
+              <button
+                key={s.label}
+                type="button"
+                role="tab"
+                aria-selected={i === current}
+                aria-label={s.label}
+                className={`hx-progress-item ${i === current ? 'is-active' : ''} ${i < current ? 'is-done' : ''}`}
+                onClick={() => setCurrent(i)}
+              >
+                <span className="hx-progress-label">{String(i + 1).padStart(2, '0')}</span>
+                <span className="hx-progress-track">
+                  {i === current && (
+                    <span
+                      key={current}
+                      className="hx-progress-fill"
+                      style={{ animationPlayState: ready ? 'running' : 'paused' }}
+                      onAnimationEnd={siguiente}
+                    />
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <button type="button" className="hx-scroll" onClick={() => irA('reservar')} aria-label="Bajar a reservas">
+            <span>Desliza</span>
+            <span className="hx-scroll-line" />
+          </button>
+        </div>
+      </header>
+
+      {/* CINTA EN MOVIMIENTO */}
+      <div className="hx-marquee" aria-hidden="true">
+        <div className="hx-marquee-track">
+          {[0, 1].map((copia) => (
+            <div className="hx-marquee-group" key={copia}>
+              {marquee.map((palabra) => (
+                <span key={palabra} className="hx-marquee-item">
+                  {palabra}<i>✦</i>
+                </span>
+              ))}
             </div>
           ))}
-          <div className="triptych-overlay"></div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-    </section>
+    </>
   );
 }

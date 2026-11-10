@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Star } from 'lucide-react';
-import Nav from '../../components/layout/Navbar'; // ─── NAVBAR INTEGRADO ───
+import { Trash2, Star, Check, AlertTriangle, MessageSquareQuote, Quote } from 'lucide-react';
+import AdminLayout from '../../components/admin/AdminLayout';
+import AdminModal from '../../components/admin/AdminModal';
 
 export default function GestionResenas() {
   const [nombre, setNombre] = useState('');
@@ -15,10 +16,6 @@ export default function GestionResenas() {
   // Modal de Alertas Personalizado
   const [modalAlerta, setModalAlerta] = useState({ isOpen: false, titulo: '', mensaje: '', tipo: 'success' });
 
-  useEffect(() => {
-    cargarResenas();
-  }, []);
-
   const cargarResenas = async () => {
     const { data } = await supabase
       .from('resenas')
@@ -26,6 +23,16 @@ export default function GestionResenas() {
       .order('id', { ascending: false });
     setResenasActivas(data || []);
   };
+
+  // Solo el barbero con sesión iniciada puede entrar aquí
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) navigate('/admin');
+      else cargarResenas();
+    };
+    checkUser();
+  }, [navigate]);
 
   const guardarResena = async (e) => {
     e.preventDefault();
@@ -48,151 +55,210 @@ export default function GestionResenas() {
     }
   };
 
-  const eliminarResena = async (id) => {
-    const { error } = await supabase.from('resenas').delete().eq('id', id);
-    if (!error) cargarResenas();
+  // Confirmación antes de quitar una reseña
+  const [resenaAQuitar, setResenaAQuitar] = useState(null);
+
+  const eliminarResena = async () => {
+    if (!resenaAQuitar) return;
+    const { error } = await supabase.from('resenas').delete().eq('id', resenaAQuitar.id);
+    setResenaAQuitar(null);
+    if (error) {
+      setModalAlerta({ isOpen: true, titulo: 'Error', mensaje: 'No se pudo quitar la reseña: ' + error.message, tipo: 'error' });
+      return;
+    }
+    cargarResenas();
   };
 
+  const promedio = resenasActivas.length
+    ? (resenasActivas.reduce((t, r) => t + (r.estrellas || 0), 0) / resenasActivas.length).toFixed(1)
+    : '—';
+  const cincoEstrellas = resenasActivas.filter(r => r.estrellas === 5).length;
+  const resumen = [
+    { label: 'Publicadas', value: resenasActivas.length },
+    { label: 'Promedio', value: promedio === '—' ? '—' : `★ ${promedio}`, tone: promedio === '—' ? undefined : 'amber' },
+    { label: '5 estrellas', value: cincoEstrellas },
+  ];
+
   return (
-    <div style={{ background: '#000', minHeight: '100vh', color: 'var(--cream)', paddingBottom: '4rem' }}>
-      
-      {/* ─── NAVBAR INTEGRADO ─── */}
-      <Nav />
-
-      {/* ─── CONTENEDOR PRINCIPAL AJUSTADO PARA NO PEGAR CON EL NAVBAR ─── */}
-      <div style={{ padding: '2rem', paddingTop: '8rem', maxWidth: '1100px', margin: '0 auto' }}>
-        
-        {/* TÍTULO PRINCIPAL CENTRADO */}
-        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', marginBottom: '3rem', color: 'var(--gold)', textAlign: 'center' }}>
-          Gestión de Reseñas
-        </h2>
-
-        <main style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '3rem' }}>
-          
-          {/* COLUMNA IZQUIERDA: CREAR RESEÑA */}
-          <div style={{ background: '#0a0a0a', padding: '2.5rem', borderRadius: '16px', border: '1px solid #222', height: 'fit-content', animation: 'fadeIn 0.5s ease' }}>
-            <h3 style={{ fontSize: '1.5rem', color: '#fff', marginBottom: '0.5rem', fontFamily: "'Playfair Display', serif" }}>Añadir Testimonio</h3>
-            <p style={{ color: '#666', fontSize: '0.85rem', marginBottom: '2rem' }}>Publica reseñas de clientes satisfechos para mostrarlas en la landing page.</p>
-            
-            <form onSubmit={guardarResena} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              
-              <div style={inputGroup}>
-                <label style={labelStyle}>NOMBRE DEL CLIENTE</label>
-                <input type="text" placeholder="Ej. Carlos Mora" value={nombre} onChange={(e) => setNombre(e.target.value)} required style={inputStyle} />
-              </div>
-
-              <div style={inputGroup}>
-                <label style={labelStyle}>CALIFICACIÓN</label>
-                <div style={{ display: 'flex', gap: '0.5rem', background: '#141414', padding: '1rem', borderRadius: '8px', border: '1px solid #333' }}>
-                  {[1, 2, 3, 4, 5].map((num) => (
-                    <Star 
-                      key={num} 
-                      size={28} 
-                      onClick={() => setEstrellas(num)}
-                      style={{ 
-                        cursor: 'pointer', 
-                        color: num <= estrellas ? 'var(--gold)' : '#333',
-                        fill: num <= estrellas ? 'var(--gold)' : 'transparent',
-                        transition: 'all 0.2s ease'
-                      }} 
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div style={inputGroup}>
-                <label style={labelStyle}>COMENTARIO</label>
-                <textarea placeholder="Escribe lo que dijo el cliente..." value={comentario} onChange={(e) => setComentario(e.target.value)} required style={{ ...inputStyle, minHeight: '120px', resize: 'vertical' }} />
-              </div>
-
-              <button type="submit" disabled={loading} style={btnSubmitGold}>
-                {loading ? 'PUBLICANDO...' : 'PUBLICAR RESEÑA'}
-              </button>
-            </form>
+    <AdminLayout
+      title="Reseñas"
+      subtitle="Publica los testimonios de tus clientes. Aparecen en la página principal al instante."
+      summary={resumen}
+    >
+      <div className="adm-grid-2 adm-anim">
+        {/* CREAR RESEÑA */}
+        <div className="adm-card" style={{ position: 'sticky', top: '7rem' }}>
+          <div className="adm-card-head" style={{ marginBottom: '1.1rem' }}>
+            <div>
+              <h2 className="adm-card-title">Nuevo testimonio</h2>
+              <p className="adm-card-sub">Lo que dijo un cliente satisfecho.</p>
+            </div>
           </div>
 
-          {/* COLUMNA DERECHA: LISTA DE RESEÑAS ACTIVAS */}
-          <div style={{ animation: 'fadeIn 0.5s ease' }}>
-            <h3 style={{ fontSize: '1.5rem', color: 'var(--cream)', marginBottom: '1.5rem', fontFamily: "'Playfair Display', serif" }}>
-              Reseñas Publicadas ({resenasActivas.length})
-            </h3>
+          <form onSubmit={guardarResena} className="adm-form">
+            <label className="adm-field">
+              <span className="adm-label">Nombre del cliente</span>
+              <input type="text" className="adm-input" placeholder="Ej. Carlos Mora" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+            </label>
 
-            {resenasActivas.length === 0 ? (
-              <p style={{ color: '#666' }}>No hay reseñas publicadas todavía.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {resenasActivas.map(resena => (
-                  <div key={resena.id} style={{ background: '#0a0a0a', border: '1px solid #222', padding: '1.5rem', borderRadius: '12px', position: 'relative' }}>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                      <div>
-                        <h4 style={{ color: '#fff', fontSize: '1.1rem', margin: '0 0 0.2rem 0' }}>{resena.cliente_nombre}</h4>
-                        <div style={{ display: 'flex', gap: '0.2rem' }}>
-                          {[...Array(resena.estrellas)].map((_, i) => <Star key={i} size={14} color="var(--gold)" fill="var(--gold)" />)}
-                        </div>
-                      </div>
-                      
-                      <button onClick={() => eliminarResena(resena.id)} style={{ background: 'transparent', border: 'none', color: '#ff4444', cursor: 'pointer', padding: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
-                        <Trash2 size={16} /> Quitar
-                      </button>
-                    </div>
-                    
-                    <p style={{ color: '#aaa', fontSize: '0.95rem', lineHeight: '1.5', margin: 0, fontStyle: 'italic' }}>
-                      "{resena.comentario}"
-                    </p>
-                  </div>
+            <div className="adm-field">
+              <span className="adm-label">Calificación</span>
+              <div className="rs-stars" role="radiogroup" aria-label="Calificación">
+                {[1, 2, 3, 4, 5].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    role="radio"
+                    aria-checked={num === estrellas}
+                    aria-label={`${num} estrella${num > 1 ? 's' : ''}`}
+                    onClick={() => setEstrellas(num)}
+                    className={num <= estrellas ? 'on' : ''}
+                  >
+                    <Star size={26} />
+                  </button>
                 ))}
+                <span className="rs-stars-label">{estrellas}/5</span>
               </div>
-            )}
+            </div>
+
+            <label className="adm-field">
+              <span className="adm-label">Comentario</span>
+              <textarea className="adm-input" placeholder="Escribe lo que dijo el cliente..." value={comentario} onChange={(e) => setComentario(e.target.value)} required />
+            </label>
+
+            <button type="submit" disabled={loading} className="adm-btn adm-btn--primary adm-btn--block" style={{ minHeight: '50px', marginTop: '0.3rem' }}>
+              {loading ? 'Publicando…' : 'Publicar reseña'}
+            </button>
+          </form>
+        </div>
+
+        {/* LISTA DE RESEÑAS */}
+        <div>
+          <div className="adm-card-head">
+            <h2 className="adm-card-title">
+              Publicadas <span className="adm-count">{resenasActivas.length}</span>
+            </h2>
           </div>
-        </main>
+
+          {resenasActivas.length === 0 ? (
+            <div className="adm-empty">
+              <div className="adm-empty-icon"><MessageSquareQuote size={22} /></div>
+              <strong>Aún no hay reseñas</strong>
+              Agrega la primera con el formulario.
+            </div>
+          ) : (
+            <div className="adm-list" style={{ gap: '0.9rem' }}>
+              {resenasActivas.map((resena) => (
+                <article key={resena.id} className="rs-item">
+                  <Quote size={56} className="rs-quote" aria-hidden="true" />
+                  <div className="rs-mini-stars" aria-label={`${resena.estrellas} de 5 estrellas`}>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star key={i} size={15} className={i <= resena.estrellas ? 'on' : ''} />
+                    ))}
+                  </div>
+                  <p className="rs-text">{resena.comentario}</p>
+                  <div className="rs-foot">
+                    <div className="rs-avatar">{(resena.cliente_nombre || '?').trim().charAt(0).toUpperCase()}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 className="adm-row-title">{resena.cliente_nombre}</h3>
+                      <span className="adm-row-meta">Visible en la página principal</span>
+                    </div>
+                    <button onClick={() => setResenaAQuitar(resena)} className="adm-btn adm-btn--danger-ghost adm-btn--icon" title="Quitar reseña" aria-label={`Quitar reseña de ${resena.cliente_nombre}`} style={{ width: '38px', minHeight: '38px' }}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* MODAL DE ALERTA PREMIUM */}
-      {modalAlerta.isOpen && (
-        <div style={overlayStyle}>
-          <div style={{ ...modalStyle, border: modalAlerta.tipo === 'error' ? '1px solid rgba(255, 68, 68, 0.4)' : '1px solid rgba(212, 175, 55, 0.4)' }}>
-            
-            <div style={{ 
-              width: '60px', height: '60px', borderRadius: '50%', margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem',
-              background: modalAlerta.tipo === 'error' ? 'rgba(255,68,68,0.1)' : 'rgba(212, 175, 55, 0.1)',
-              color: modalAlerta.tipo === 'error' ? '#ff4444' : 'var(--gold)'
-            }}>
-              {modalAlerta.tipo === 'error' ? '⚠️' : '✓'}
-            </div>
-            
-            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', color: '#fff', marginBottom: '1rem' }}>
-              {modalAlerta.titulo}
-            </h3>
-            <p style={{ color: 'var(--grey)', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: '1.5' }}>
-              {modalAlerta.mensaje}
-            </p>
-            <button onClick={() => setModalAlerta({ isOpen: false, titulo: '', mensaje: '', tipo: 'success' })} style={modalAlerta.tipo === 'error' ? btnConfirmRed : btnConfirmGold}>
-              Continuar
-            </button>
-          </div>
+      {/* MODAL: CONFIRMAR QUITAR */}
+      <AdminModal open={!!resenaAQuitar} center icon={<Trash2 size={24} />} iconTone="red" title="¿Quitar reseña?">
+        <p className="adm-modal-text">
+          La reseña de <b>{resenaAQuitar?.cliente_nombre}</b> dejará de mostrarse en la página principal.
+        </p>
+        <div className="adm-modal-actions" style={{ marginTop: 0 }}>
+          <button onClick={() => setResenaAQuitar(null)} className="adm-btn adm-btn--ghost">Cancelar</button>
+          <button onClick={eliminarResena} className="adm-btn adm-btn--danger">Sí, quitar</button>
         </div>
-      )}
+      </AdminModal>
 
-      {/* Animaciones CSS */}
+      {/* MODAL DE ALERTA */}
+      <AdminModal
+        open={modalAlerta.isOpen}
+        center
+        icon={modalAlerta.tipo === 'error' ? <AlertTriangle size={24} /> : <Check size={26} />}
+        iconTone={modalAlerta.tipo === 'error' ? 'red' : 'green'}
+        title={modalAlerta.titulo}
+      >
+        <p className="adm-modal-text">{modalAlerta.mensaje}</p>
+        <button
+          onClick={() => setModalAlerta({ isOpen: false, titulo: '', mensaje: '', tipo: 'success' })}
+          className={`adm-btn adm-btn--block ${modalAlerta.tipo === 'error' ? 'adm-btn--danger' : 'adm-btn--primary'}`}
+        >
+          Continuar
+        </button>
+      </AdminModal>
+
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
+        .rs-stars {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0.55rem 0.8rem;
+          background: var(--adm-surface-2);
+          border: 1px solid var(--adm-line-strong);
+          border-radius: 12px;
         }
+        .rs-stars button {
+          background: none;
+          border: none;
+          padding: 0.2rem;
+          cursor: pointer;
+          color: var(--adm-dim);
+          display: grid;
+          transition: transform 0.15s ease, color 0.15s ease;
+        }
+        .rs-stars button:hover { transform: scale(1.12); }
+        .rs-stars button.on { color: var(--adm-amber); }
+        .rs-stars button.on svg { fill: currentColor; }
+        .rs-stars-label { margin-left: auto; font-size: 0.8rem; color: var(--adm-muted); font-variant-numeric: tabular-nums; }
+        .rs-item {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          padding: 1.4rem 1.4rem 1.2rem;
+          border-radius: 20px;
+          border: 1px solid var(--adm-line);
+          background:
+            radial-gradient(90% 80% at 100% 0%, rgba(255, 181, 71, 0.06) 0%, transparent 60%),
+            linear-gradient(180deg, #121211 0%, var(--adm-surface) 100%);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+          transition: border-color 0.25s ease, transform 0.25s ease;
+        }
+        .rs-item:hover { border-color: var(--adm-line-strong); transform: translateY(-2px); }
+        .rs-quote { position: absolute; z-index: -1; top: 0.6rem; right: 0.9rem; color: rgba(245, 245, 220, 0.06); fill: currentColor; }
+        .rs-avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          flex-shrink: 0;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(145deg, #2a2a24, #161614);
+          border: 1px solid var(--adm-line-strong);
+          font-family: 'Playfair Display', serif;
+          font-weight: 700;
+          font-size: 1.05rem;
+        }
+        .rs-mini-stars { display: flex; gap: 3px; color: var(--adm-dim); margin-bottom: 0.8rem; }
+        .rs-mini-stars .on { color: var(--adm-amber); fill: currentColor; }
+        .rs-text { font-family: 'Playfair Display', serif; font-style: italic; color: #deded0; font-size: 1.05rem; line-height: 1.6; margin-bottom: 1.1rem; }
+        .rs-foot { display: flex; align-items: center; gap: 0.8rem; padding-top: 1rem; border-top: 1px solid var(--adm-line); }
+        @media (max-width: 860px) { .adm-grid-2 > .adm-card { position: static !important; } }
       `}</style>
-    </div>
+    </AdminLayout>
   );
 }
-
-// ─── ESTILOS REUTILIZABLES PREMIUM ───
-const inputGroup = { display: 'flex', flexDirection: 'column', gap: '0.5rem' };
-const labelStyle = { color: '#888', fontSize: '0.75rem', fontWeight: 'bold', letterSpacing: '0.15em' };
-const inputStyle = { background: '#141414', border: '1px solid #333', color: 'white', padding: '1rem', borderRadius: '8px', outline: 'none', fontFamily: 'system-ui, sans-serif', width: '100%', boxSizing: 'border-box' };
-const btnSubmitGold = { background: 'var(--gold)', color: '#000', border: 'none', padding: '1rem', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '1rem', transition: 'opacity 0.3s' };
-
-// Modales
-const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const modalStyle = { background: '#0a0a0a', padding: '3rem', borderRadius: '20px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' };
-const btnConfirmGold = { width: '100%', background: 'var(--gold)', border: 'none', color: '#000', padding: '1rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em' };
-const btnConfirmRed = { width: '100%', background: '#ff4444', border: 'none', color: '#fff', padding: '1rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em' };

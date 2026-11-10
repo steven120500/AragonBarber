@@ -1,23 +1,32 @@
-import { useState, useEffect, useRef } from 'react'; 
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Nav from './components/layout/Navbar'; 
 import Hero from './components/layout/Hero';
+import Intro from './components/layout/Intro';
+import { debeMostrarIntro } from './components/layout/introStorage';
 import BookingWrapper from './components/booking/BookingWrapper';
 import Footer from './components/layout/Footer';
 import Reseñas from './components/layout/Reseñas';
 import Nosotros from './components/layout/Nosotros';
-import GestionResenas from './pages/admin/GestionResenas'; 
 import CancelarCita from './pages/CancelarCita'; 
-import { supabase } from './services/supabaseClient'; 
+import { supabase } from './services/supabaseClient';
+import { formatearPrecio } from './utils/formato';
 
-// Vistas del Administrador
-import Login from './pages/admin/Login'; 
-import MisCitas from './pages/admin/MisCitas'; 
-import Finanzas from './pages/admin/Finanzas'; 
-import GestionProductos from './pages/admin/GestionProductos'; 
+// Vistas del Administrador (se cargan solo cuando se visitan, así la página
+// principal no descarga las librerías de PDF y gráficos)
+const Login = lazy(() => import('./pages/admin/Login'));
+const MisCitas = lazy(() => import('./pages/admin/MisCitas'));
+const Finanzas = lazy(() => import('./pages/admin/Finanzas'));
+const GestionProductos = lazy(() => import('./pages/admin/GestionProductos'));
+const GestionResenas = lazy(() => import('./pages/admin/GestionResenas'));
+
+// Ancho de cada tarjeta del carrusel + su separación (290px + 24px)
+const ANCHO_TARJETA = 314;
 
 function LandingPage() {
   const [productos, setProductos] = useState([]);
+  const [mostrarIntro] = useState(debeMostrarIntro);
+  const [introLista, setIntroLista] = useState(!mostrarIntro);
   const trackRef = useRef(null);
   const controlsRef = useRef({ boost: null });
 
@@ -34,9 +43,10 @@ function LandingPage() {
     fetchProductos();
   }, []);
 
-  // Multiplicamos la lista para que una mitad sea más ancha que cualquier pantalla
-  const baseList = productos.length > 0 
-    ? Array(Math.max(3, Math.ceil(8 / productos.length))).fill(productos).flat() 
+  // Multiplicamos la lista para que una mitad sea más ancha que la pantalla (incluso monitores 4K)
+  const tarjetasMinimas = Math.ceil(Math.max(window.innerWidth, 1920) / ANCHO_TARJETA) + 2;
+  const baseList = productos.length > 0
+    ? Array(Math.max(1, Math.ceil(tarjetasMinimas / productos.length))).fill(productos).flat()
     : [];
   const productosInfinitos = [...baseList, ...baseList];
 
@@ -232,8 +242,9 @@ function LandingPage() {
 
   return (
     <div className="app-container">
+      {mostrarIntro && !introLista && <Intro onFinish={() => setIntroLista(true)} />}
       <Nav />
-      <Hero />
+      <Hero ready={introLista} />
       
       {/* 1. SECCIÓN DE CITAS / SERVICIOS */}
       <section id="reservar" className="reveal visible">
@@ -270,7 +281,6 @@ function LandingPage() {
               className="productos-gpu-track"
               style={{ 
                 display: 'flex', 
-                gap: '1.5rem', 
                 width: 'max-content',
                 willChange: 'transform',
                 touchAction: 'pan-y',
@@ -284,6 +294,7 @@ function LandingPage() {
                   key={`${prod.id}-${index}`} 
                   style={{ 
                     width: '290px', 
+                    marginRight: '1.5rem',
                     background: '#111', 
                     borderRadius: '14px', 
                     border: '1px solid #262626', 
@@ -325,9 +336,9 @@ function LandingPage() {
                     <p style={{ color: 'var(--grey)', fontSize: '0.9rem', marginBottom: '1.5rem', flex: 1 }}>{prod.descripcion}</p>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-                      <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#fff' }}>₡{prod.precio}</span>
+                      <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#fff' }}>{formatearPrecio(prod.precio)}</span>
                       <a 
-                        href={`https://wa.me/50683678788?text=${encodeURIComponent(`Hola, me interesa este producto: ${prod.nombre}\n\n📝 Descripción: ${prod.descripcion}\n💰 Precio: ₡${prod.precio}`)}`} 
+                        href={`https://wa.me/50683678788?text=${encodeURIComponent(`Hola, me interesa este producto: ${prod.nombre}\n\n📝 Descripción: ${prod.descripcion}\n💰 Precio: ${formatearPrecio(prod.precio)}`)}`} 
                         target="_blank" 
                         rel="noreferrer"
                         className="btn-pedir"
@@ -399,6 +410,7 @@ const flechaBtnStyle = {
 export default function App() {
   return (
     <Router>
+      <Suspense fallback={<div style={{ minHeight: '100vh', background: '#000' }} />}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         
@@ -411,6 +423,7 @@ export default function App() {
         <Route path="/admin/resenas" element={<GestionResenas />} />
         <Route path="/admin/productos" element={<GestionProductos />} />
       </Routes>
+      </Suspense>
     </Router>
   );
 }

@@ -1,7 +1,24 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient'; 
 import { useNavigate } from 'react-router-dom';
-import Nav from '../../components/layout/Navbar';
+import { CalendarPlus, CalendarCheck, CalendarDays, Scissors, Phone, MessageCircle, Banknote, AlertTriangle, Clock, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import AdminLayout from '../../components/admin/AdminLayout';
+import AdminModal from '../../components/admin/AdminModal';
+import { formatearPrecio, formatearFechaCorta, formatearFechaRelativa, formatearHora, hoyCR, horaCR, sumarDias, diaSemana } from '../../utils/formato';
+import { SERVICIOS, precioServicio, duracionServicio, aMinutos, aHora, seCruzan, HORA_APERTURA, HORA_CIERRE, INICIO_TARDE, INTERVALO_MIN } from '../../utils/servicios';
+
+// ─── DOMINGOS ELIMINADOS ───
+const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+// ─── BLOQUES DE 30 MIN DE 8:00 AM A 7:30 PM (según utils/servicios.js) ───
+const bloquesHorarios = (() => {
+  const bloques = [];
+  for (let min = HORA_APERTURA * 60; min < HORA_CIERRE * 60; min += INTERVALO_MIN) bloques.push(aHora(min));
+  return bloques;
+})();
+
+const ordinales = ['Primer', 'Segundo', 'Tercer', 'Cuarto', 'Quinto'];
+const serviciosDefault = ['Corte y Barba', 'Corte', 'Corte y Barba', 'Corte', 'Corte'];
 
 export default function MisCitas() {
   const [citas, setCitas] = useState([]);
@@ -11,8 +28,8 @@ export default function MisCitas() {
 
   const [isModalPagoOpen, setIsModalPagoOpen] = useState(false);
   const [citaActiva, setCitaActiva] = useState(null);
-  const [precioEditable, setPrecioEditable] = useState(0); 
-  
+  const [precioEditable, setPrecioEditable] = useState(0);
+
   const [isModalCancelOpen, setIsModalCancelOpen] = useState(false);
   const [citaToCancel, setCitaToCancel] = useState(null);
 
@@ -20,78 +37,116 @@ export default function MisCitas() {
   const [modalDesbloqueo, setModalDesbloqueo] = useState({ isOpen: false, id: null, dia: '', hora: '', tipo: '' });
 
   const [seleccion, setSeleccion] = useState({});
+  const [guardandoHorario, setGuardandoHorario] = useState(false);
 
-  const obtenerPrecioFijo = (servicio) => {
-    if (!servicio) return 4000;
-    const serv = servicio.toLowerCase();
-    if (serv.includes('corte y barba') || serv.includes('combo')) return 6000;
-    if (serv.includes('barba')) return 2000;
-    if (serv.includes('corte')) return 4000;
-    return 4000;
-  };
+  // ─── SEMANA VISIBLE EN LA CUADRÍCULA ───
+  // Las citas se muestran según su FECHA real; abrir/cerrar horarios aplica a todas las semanas.
+  const hoyISO = hoyCR();
+  const lunesActual = (() => {
+    const dow = diaSemana(hoyISO); // 0 = domingo
+    return dow === 0 ? sumarDias(hoyISO, 1) : sumarDias(hoyISO, -(dow - 1));
+  })();
+  const [semanaOffset, setSemanaOffset] = useState(0);
+  const lunesSemana = sumarDias(lunesActual, semanaOffset * 7);
+  const fechasSemana = diasSemana.map((_, i) => sumarDias(lunesSemana, i));
+
+  // Día visible en la vista de celular (0 = Lunes … 5 = Sábado); domingo muestra el lunes
+  const [diaMovil, setDiaMovil] = useState(() => {
+    const d = diaSemana(hoyCR());
+    return d === 0 ? 0 : d - 1;
+  });
+
+  const avisar = (mensaje) => setModalAlerta({ isOpen: true, mensaje });
 
   // ─── ESTADOS PARA PLAN MENSUAL / CITAS FIJAS ───
   const [isModalFijaOpen, setIsModalFijaOpen] = useState(false);
   const [guardandoFijas, setGuardandoFijas] = useState(false);
-  const [formFija, setFormFija] = useState(() => {
-    const hoy = new Date();
-    return {
-      cliente_nombre: '',
-      telefono: '',
-      mes: `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`,
-      diaSemana: 2, // 1 = Lunes, 2 = Martes, ..., 6 = Sábado
-      hora: '15:00'
-    };
-  });
-  const [fechasMes, setFechasMes] = useState([]);
+  const [formFija, setFormFija] = useState(() => ({
+    cliente_nombre: '',
+    telefono: '',
+    mes: hoyCR().slice(0, 7),
+    diaSemana: 2, // 1 = Lunes, 2 = Martes, ..., 6 = Sábado
+    hora: '15:00'
+  }));
+  const [serviciosPorFecha, setServiciosPorFecha] = useState({}); // cambios manuales del barbero
 
-  // Calcular automáticamente las fechas del mes (1er martes, 2do martes, etc.)
-  useEffect(() => {
-    if (!formFija.mes || typeof formFija.mes !== 'string') return;
-    const [year, month] = formFija.mes.split('-').map(Number);
+  // Fechas del mes para el día elegido (1er martes, 2do martes, etc.). Las que ya pasaron no se agendan.
+  const fechasBase = (() => {
+    if (!formFija.mes || typeof formFija.mes !== 'string') return [];
     const numDia = Number(formFija.diaSemana); // 1 (Lun) a 6 (Sáb)
-
-    const fechasCalculadas = [];
-    const fechaCursor = new Date(year, month - 1, 1);
-    const ordinales = ['Primer', 'Segundo', 'Tercer', 'Cuarto', 'Quinto'];
-    const serviciosDefault = ['Corte y Barba', 'Corte', 'Corte y Barba', 'Corte', 'Corte'];
-
-    let index = 0;
-    while (fechaCursor.getMonth() === month - 1) {
-      if (fechaCursor.getDay() === numDia) {
-        const y = fechaCursor.getFullYear();
-        const m = String(fechaCursor.getMonth() + 1).padStart(2, '0');
-        const d = String(fechaCursor.getDate()).padStart(2, '0');
-        fechasCalculadas.push({
-          fecha: `${y}-${m}-${d}`,
-          etiqueta: `${ordinales[index] || 'Quinto'}`,
-          servicio: serviciosDefault[index] || 'Corte'
-        });
-        index++;
+    const primero = `${formFija.mes}-01`;
+    const lista = [];
+    for (let i = 0; i < 31; i++) {
+      const fecha = sumarDias(primero, i);
+      if (fecha.slice(0, 7) !== formFija.mes) break;
+      if (diaSemana(fecha) === numDia) {
+        const n = lista.length;
+        lista.push({ fecha, etiqueta: ordinales[n] || 'Quinto', servicioDefault: serviciosDefault[n] || 'Corte', pasada: fecha < hoyISO });
       }
-      fechaCursor.setDate(fechaCursor.getDate() + 1);
     }
-    setFechasMes(fechasCalculadas);
-  }, [formFija.mes, formFija.diaSemana]);
+    return lista;
+  })();
+
+  const fechasMes = fechasBase.map(f => ({
+    ...f,
+    servicio: f.pasada ? 'ninguno' : (serviciosPorFecha[f.fecha] ?? f.servicioDefault),
+  }));
 
   const cambiarServicioFecha = (idx, nuevoServicio) => {
-    setFechasMes(prev => prev.map((item, i) => i === idx ? { ...item, servicio: nuevoServicio } : item));
+    const fecha = fechasMes[idx]?.fecha;
+    if (fecha) setServiciosPorFecha(prev => ({ ...prev, [fecha]: nuevoServicio }));
   };
 
   const guardarCitasFijas = async (e) => {
     e.preventDefault();
     if (!formFija.cliente_nombre.trim()) {
-      setModalAlerta({ isOpen: true, mensaje: 'Por favor ingresa el nombre del cliente.' });
+      avisar('Por favor ingresa el nombre del cliente.');
       return;
     }
 
-    const citasParaAgendar = fechasMes.filter(f => f.servicio !== 'ninguno');
+    const citasParaAgendar = fechasMes.filter(f => f.servicio !== 'ninguno' && !f.pasada);
     if (citasParaAgendar.length === 0) {
-      setModalAlerta({ isOpen: true, mensaje: 'Debes dejar al menos una semana con servicio activo.' });
+      avisar('Debes dejar al menos una semana (que no haya pasado) con servicio activo.');
+      return;
+    }
+
+    const inicio = aMinutos(formFija.hora);
+    const terminaTarde = citasParaAgendar.find(f => inicio + duracionServicio(f.servicio) > HORA_CIERRE * 60);
+    if (terminaTarde) {
+      avisar(`A las ${formatearHora(formFija.hora)} un servicio de "${terminaTarde.servicio}" terminaría después del cierre. Elige una hora más temprano.`);
       return;
     }
 
     setGuardandoFijas(true);
+
+    // Revisar que no choque con citas ya agendadas esas fechas
+    const { data: existentes, error: errorCheck } = await supabase
+      .from('citas')
+      .select('fecha, hora, servicio, cliente_nombre')
+      .in('fecha', citasParaAgendar.map(f => f.fecha))
+      .neq('estado', 'Cancelada');
+
+    if (errorCheck) {
+      setGuardandoFijas(false);
+      avisar('No se pudo verificar la agenda: ' + errorCheck.message);
+      return;
+    }
+
+    const choques = citasParaAgendar.filter(f => {
+      const fin = inicio + duracionServicio(f.servicio);
+      return (existentes || []).some(c => {
+        if (c.fecha !== f.fecha) return false;
+        const ini = aMinutos(c.hora.substring(0, 5));
+        return seCruzan(inicio, fin, ini, ini + duracionServicio(c.servicio));
+      });
+    });
+
+    if (choques.length > 0) {
+      setGuardandoFijas(false);
+      avisar(`Ya hay citas a esa hora el ${choques.map(f => formatearFechaCorta(f.fecha)).join(', ')}. Marca esas semanas como "No agendar" o elige otra hora.`);
+      return;
+    }
+
     const nuevasCitas = citasParaAgendar.map(f => ({
       cliente_nombre: formFija.cliente_nombre.trim(),
       apellido: '',
@@ -99,7 +154,7 @@ export default function MisCitas() {
       fecha: f.fecha,
       hora: `${formFija.hora}:00`,
       servicio: f.servicio,
-      precio: obtenerPrecioFijo(f.servicio),
+      precio: precioServicio(f.servicio),
       estado: 'pendiente'
     }));
 
@@ -107,77 +162,63 @@ export default function MisCitas() {
     setGuardandoFijas(false);
 
     if (error) {
-      setModalAlerta({ isOpen: true, mensaje: 'Hubo un error al guardar las citas: ' + error.message });
+      avisar('Hubo un error al guardar las citas: ' + error.message);
     } else {
       setIsModalFijaOpen(false);
       setFormFija(prev => ({ ...prev, cliente_nombre: '', telefono: '' }));
+      setServiciosPorFecha({});
       cargarDatos();
-      setModalAlerta({ isOpen: true, mensaje: `¡Se agendaron ${nuevasCitas.length} citas fijas para ${formFija.cliente_nombre} con éxito!` });
+      avisar(`¡Se agendaron ${nuevasCitas.length} citas fijas para ${formFija.cliente_nombre} con éxito!`);
     }
   };
-  
-  // ─── DOMINGOS ELIMINADOS ───
-  const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-  
-  // ─── HORARIO DE 09:00 AM A 07:30 PM ───
-  const bloquesHorarios = (() => {
-    const bloques = [];
-    for (let h = 8; h < 20; h++) { 
-      const horaStr = h.toString().padStart(2, '0');
-      bloques.push(`${horaStr}:00`);
-      bloques.push(`${horaStr}:30`);
-    }
-    return bloques;
-  })();
 
-  const formato12h = (hora24) => {
-    if (!hora24) return '';
-    const [horaStr, minuto] = hora24.split(':');
-    let h = parseInt(horaStr, 10);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12;
-    h = h ? h : 12; 
-    return `${h}:${minuto} ${ampm}`;
+  const formato12h = formatearHora;
+
+  const cargarDatos = async () => {
+    setLoading(true);
+    const [resCitas, resBloqueos] = await Promise.all([
+      supabase.from('citas').select('*').eq('estado', 'pendiente').order('fecha', { ascending: true }).order('hora', { ascending: true }),
+      supabase.from('horarios_bloqueados').select('*'),
+    ]);
+    if (resCitas.error || resBloqueos.error) {
+      avisar('No se pudo cargar la agenda: ' + (resCitas.error || resBloqueos.error).message);
+    }
+    setCitas(resCitas.data || []);
+    setBloqueos(resBloqueos.data || []);
+    setLoading(false);
   };
 
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate('/admin'); 
+      if (!session) navigate('/admin');
       else cargarDatos();
     };
     checkUser();
+    // Se carga una sola vez al entrar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  const cargarDatos = async () => {
-    setLoading(true);
-    const { data: dataCitas } = await supabase.from('citas').select('*').eq('estado', 'pendiente').order('fecha', { ascending: true }).order('hora', { ascending: true });
-    const { data: dataBloqueos } = await supabase.from('horarios_bloqueados').select('*');
 
-    setCitas(dataCitas || []);
-    setBloqueos(dataBloqueos || []);
-    setLoading(false);
-  };
-
+  // Cita que ocupa una celda en la semana visible (una cita de 1 h ocupa dos bloques de 30 min)
   const getCitaEnCelda = (diaIdx, hora) => {
+    const fecha = fechasSemana[diaIdx];
+    const slot = aMinutos(hora);
     return citas.find(c => {
-      const [year, month, day] = c.fecha.split('-');
-      const fechaObj = new Date(year, month - 1, day);
-      const diaJS = fechaObj.getDay(); 
-      const diaMatriz = diaJS === 0 ? 6 : diaJS - 1; 
-      return diaMatriz === diaIdx && c.hora.substring(0, 5) === hora;
+      if (c.fecha !== fecha) return false;
+      const ini = aMinutos(c.hora.substring(0, 5));
+      return slot >= ini && slot < ini + duracionServicio(c.servicio);
     });
   };
 
   // ─── LÓGICA INTELIGENTE DE CELDAS (MAÑANA VS TARDE) ───
   const toggleCelda = (dia, hora, diaIdx) => {
-    const hInt = parseInt(hora.split(':')[0]);
-    const isManana = hInt < 14; 
+    const isManana = aMinutos(hora) < INICIO_TARDE * 60;
     const horaDB = `${hora}:00`;
 
     const citaExistente = getCitaEnCelda(diaIdx, hora);
     if (citaExistente) {
-      setModalAlerta({ isOpen: true, mensaje: "No puedes modificar este horario, ya tienes una cita agendada." });
+      avisar(`No puedes modificar este horario: ${citaExistente.cliente_nombre} tiene cita el ${formatearFechaCorta(citaExistente.fecha)} a las ${formato12h(citaExistente.hora.substring(0, 5))}.`);
       return;
     }
 
@@ -200,444 +241,638 @@ export default function MisCitas() {
 
   const confirmarDesbloqueo = async () => {
     if (!modalDesbloqueo.id) return;
-    await supabase.from('horarios_bloqueados').delete().eq('id', modalDesbloqueo.id);
+    const { error } = await supabase.from('horarios_bloqueados').delete().eq('id', modalDesbloqueo.id);
     setModalDesbloqueo({ isOpen: false, id: null, dia: '', hora: '', tipo: '' });
-    cargarDatos(); 
+    if (error) avisar('No se pudo modificar el horario: ' + error.message);
+    cargarDatos();
   };
 
   const aplicarCambios = async () => {
     const nuevos = Object.keys(seleccion).filter(k => seleccion[k]).map(key => {
       const [dia, hora] = key.split('-');
-      const [h, m] = hora.split(':');
-      const isManana = parseInt(h) < 14;
-      
-      const diaIdx = diasSemana.indexOf(dia) + 1; 
+      const isManana = aMinutos(hora) < INICIO_TARDE * 60;
+      const diaIdx = diasSemana.indexOf(dia) + 1;
 
       if (isManana) {
         return { dia_semana: diaIdx, hora_inicio: `${hora}:00`, hora_fin: `${hora}:00` };
-      } else {
-        const horaFin = m === '00' ? `${h}:30` : `${(parseInt(h) + 1).toString().padStart(2, '0')}:00`;
-        return { dia_semana: diaIdx, hora_inicio: `${hora}:00`, hora_fin: `${horaFin}:00` };
       }
+      return { dia_semana: diaIdx, hora_inicio: `${hora}:00`, hora_fin: `${aHora(aMinutos(hora) + INTERVALO_MIN)}:00` };
     });
-    
-    if (nuevos.length > 0) {
-      await supabase.from('horarios_bloqueados').insert(nuevos);
-      setSeleccion({});
-      cargarDatos();
+
+    if (nuevos.length === 0) { setSeleccion({}); return; }
+
+    setGuardandoHorario(true);
+    const { error } = await supabase.from('horarios_bloqueados').insert(nuevos);
+    setGuardandoHorario(false);
+    if (error) {
+      avisar('No se pudieron guardar los cambios de horario: ' + error.message);
+      return;
     }
+    setSeleccion({});
+    cargarDatos();
   };
 
   const procesarPago = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('citas').update({ 
-      estado: 'Completada', 
-      precio: parseInt(precioEditable) || 0 
+    const precio = parseInt(precioEditable);
+    if (Number.isNaN(precio) || precio < 0) {
+      avisar('Ingresa un monto válido para el cobro.');
+      return;
+    }
+    const { error } = await supabase.from('citas').update({
+      estado: 'Completada',
+      precio
     }).eq('id', citaActiva.id);
-    
-    if (!error) { 
-      setIsModalPagoOpen(false); 
-      setCitaActiva(null); 
-      cargarDatos(); 
+
+    if (!error) {
+      setIsModalPagoOpen(false);
+      setCitaActiva(null);
+      cargarDatos();
     } else {
-      setModalAlerta({ isOpen: true, mensaje: 'Error al procesar el pago.' });
+      avisar('Error al procesar el pago: ' + error.message);
     }
   };
 
   const confirmarCancelacion = async () => {
     if (!citaToCancel) return;
     const { error } = await supabase.from('citas').update({ estado: 'Cancelada' }).eq('id', citaToCancel.id);
-    if (!error) { setIsModalCancelOpen(false); setCitaToCancel(null); cargarDatos(); }
+    setIsModalCancelOpen(false);
+    setCitaToCancel(null);
+    if (error) { avisar('No se pudo cancelar la cita: ' + error.message); return; }
+    cargarDatos();
   };
 
   const iniciarCobro = (cita) => {
     setCitaActiva(cita);
-    setPrecioEditable(obtenerPrecioFijo(cita.servicio));
+    // Usa el precio guardado en la cita; si no tiene (citas antiguas), el precio oficial del servicio
+    setPrecioEditable(Number(cita.precio) > 0 ? Number(cita.precio) : precioServicio(cita.servicio));
     setIsModalPagoOpen(true);
   };
 
-  // ─── RECORDATORIO POR WHATSAPP CON "HOY" Y LINK DE WAZE ───
+  // ─── RECORDATORIO POR WHATSAPP (HOY / MAÑANA / FECHA) CON LINK DE WAZE ───
   const enviarRecordatorioWhatsApp = (cita) => {
     const horaTexto = formato12h(cita.hora.substring(0, 5));
-    const direccionWaze = "\nhttps://waze.com/ul/hd1u135x3h"; 
-    
-    const mensaje = `Hola ${cita.cliente_nombre}, te saludamos de Aragon Barber Studio. 💈\n\nTe escribimos para recordarte tu cita *hoy* a las *${horaTexto}* para tu servicio de *${cita.servicio}*.\n\n📍 *Ubicación:*\n${direccionWaze}\n\n¡Te esperamos! Por favor avísanos si necesitas reprogramar.`;
-    
+    const direccionWaze = "\nhttps://waze.com/ul/hd1u135x3h";
+    const cuando = cita.fecha === hoyISO
+      ? '*hoy*'
+      : cita.fecha === sumarDias(hoyISO, 1)
+        ? '*mañana*'
+        : `el *${formatearFechaRelativa(cita.fecha).toLowerCase()}*`;
+
+    const mensaje = `Hola ${cita.cliente_nombre}, te saludamos de Aragon Barber Studio. 💈\n\nTe escribimos para recordarte tu cita ${cuando} a las *${horaTexto}* para tu servicio de *${cita.servicio}*.\n\n📍 *Ubicación:*\n${direccionWaze}\n\n¡Te esperamos! Por favor avísanos si necesitas reprogramar.`;
+
     const telefonoLimpio = cita.telefono ? cita.telefono.replace(/\D/g, '') : '';
-    
-    if (telefonoLimpio.length === 8 || telefonoLimpio.length === 11) {
+    const valido = telefonoLimpio.length === 8 || (telefonoLimpio.length === 11 && telefonoLimpio.startsWith('506'));
+
+    if (valido) {
       const numeroConCodigo = telefonoLimpio.length === 8 ? `506${telefonoLimpio}` : telefonoLimpio;
       const urlWhatsApp = `https://api.whatsapp.com/send?phone=${numeroConCodigo}&text=${encodeURIComponent(mensaje)}`;
       window.open(urlWhatsApp, '_blank');
     } else {
-      navigator.clipboard.writeText(mensaje);
-      setModalAlerta({ 
-        isOpen: true, 
-        mensaje: 'Se ha copiado el mensaje de recordatorio al portapapeles. ¡Ahora puedes pegarlo en el chat del cliente!' 
-      });
+      const copiado = navigator.clipboard?.writeText
+        ? navigator.clipboard.writeText(mensaje)
+        : Promise.reject(new Error('sin portapapeles'));
+      copiado
+        .then(() => avisar('Esta cita no tiene un teléfono válido. Copiamos el recordatorio al portapapeles para que lo pegues en el chat del cliente.'))
+        .catch(() => avisar('Esta cita no tiene un teléfono válido y no se pudo copiar el mensaje. Escríbele al cliente manualmente.'));
     }
   };
 
-  return (
-    <div style={{ minHeight: '100vh', background: '#000', color: 'var(--cream)', paddingBottom: '4rem' }}>
-      
-      <Nav />
+  // ─── PRESENTACIÓN DE CADA CELDA ───
+  const estadoCelda = (d, h, idx) => {
+    const isManana = aMinutos(h) < INICIO_TARDE * 60;
+    const horaDB = `${h}:00`;
+    const cita = getCitaEnCelda(idx, h);
+    const estaSeleccionado = seleccion[`${d}-${h}`];
 
-      <div style={{ padding: '2rem', paddingTop: '8rem', maxWidth: '1200px', margin: '0 auto' }}>
-        
-        {/* ─── CALENDARIO SEMANAL ─── */}
-        <section style={{ marginBottom: '4rem', overflowX: 'auto', background: '#0a0a0a', padding: '2rem', borderRadius: '16px', border: '1px solid #222' }}>
-          <h2 style={{ color: 'var(--gold)', textAlign: 'center', marginBottom: '0.5rem', fontFamily: "'Playfair Display', serif", fontSize: '2rem' }}>Gestión de Horarios</h2>
-          <p style={{ textAlign: 'center', color: 'var(--grey)', marginBottom: '2rem', fontSize: '0.85rem' }}>
-            Las mañanas están <span style={{color:'#555', fontWeight:'bold'}}>CERRADAS</span> por defecto (tócalas para abrir). <br/>
-            Las tardes están <span style={{color:'#fff', fontWeight:'bold'}}>ABIERTAS</span> por defecto (tócalas para cerrar).
-          </p>
-          
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+    if (cita) {
+      const esInicio = cita.hora.substring(0, 5) === h;
+      return { clase: esInicio ? 'cita' : 'cita cont', texto: esInicio ? cita.cliente_nombre : '↳ ocupado' };
+    }
+    if (isManana) {
+      const apertura = bloqueos.some(b => b.dia_semana === idx + 1 && b.hora_inicio === horaDB && b.hora_fin === horaDB);
+      if (apertura) return { clase: 'abierto', texto: 'Abierto' };
+      if (estaSeleccionado) return { clase: 'abrir', texto: 'Abrir' };
+      return { clase: 'cerrado', texto: 'Cerrado' };
+    }
+    const cierre = bloqueos.some(b => b.dia_semana === idx + 1 && b.hora_inicio === horaDB && b.hora_fin !== horaDB);
+    if (cierre) return { clase: 'bloqueado', texto: 'Cerrado' };
+    if (estaSeleccionado) return { clase: 'cerrar', texto: 'Cerrar' };
+    return { clase: 'libre', texto: '' };
+  };
+
+  const cambiosPendientes = Object.values(seleccion).filter(Boolean).length;
+
+  // Citas agrupadas por fecha (ya vienen ordenadas por fecha y hora)
+  const citasPorDia = citas.reduce((grupos, cita) => {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.fecha === cita.fecha) ultimo.items.push(cita);
+    else grupos.push({ fecha: cita.fecha, items: [cita] });
+    return grupos;
+  }, []);
+
+  const citasHoy = citas.filter(c => c.fecha === hoyISO).length;
+  const horaAhora = horaCR();
+  const proxima = citas.find(c => c.fecha > hoyISO || (c.fecha === hoyISO && c.hora.substring(0, 5) >= horaAhora));
+  const limiteSemana = sumarDias(hoyISO, 6);
+  const citasSemana = citas.filter(c => c.fecha >= hoyISO && c.fecha <= limiteSemana).length;
+  const sinCobrar = citas.filter(c => c.fecha < hoyISO).length;
+  const resumen = loading ? [] : [
+    { label: 'Pendientes', value: citas.length, hint: sinCobrar > 0 ? `${sinCobrar} de días anteriores` : undefined },
+    { label: 'Hoy', value: citasHoy, tone: citasHoy > 0 ? 'green' : undefined },
+    { label: 'Próximos 7 días', value: citasSemana },
+    proxima
+      ? { label: 'Próxima cita', value: formato12h(proxima.hora.substring(0, 5)), hint: `${formatearFechaRelativa(proxima.fecha)} · ${(proxima.cliente_nombre || '').replace(/^./, (l) => l.toUpperCase())}` }
+      : { label: 'Próxima cita', value: '—', hint: 'Sin citas próximas' },
+  ];
+
+  return (
+    <AdminLayout
+      title="Agenda"
+      subtitle="Tus citas pendientes y el horario que ven los clientes al reservar."
+      summary={resumen}
+      actions={
+        <button onClick={() => setIsModalFijaOpen(true)} className="adm-btn adm-btn--primary">
+          <CalendarPlus size={17} /> Plan mensual / cita fija
+        </button>
+      }
+    >
+      {/* ─── AGENDA DE CITAS ACTIVAS ─── */}
+      <div className="adm-anim">
+        <div className="adm-card-head">
+          <h2 className="adm-card-title">Citas pendientes <span className="adm-count">{citas.length}</span></h2>
+        </div>
+
+        {loading ? (
+          <div className="ag-grid">
+            {[0, 1, 2].map((i) => <div key={i} className="adm-skel" style={{ height: '200px' }} />)}
+          </div>
+        ) : citas.length === 0 ? (
+          <div className="adm-empty">
+            <div className="adm-empty-icon"><CalendarCheck size={22} /></div>
+            <strong>La agenda está limpia</strong>
+            No hay citas pendientes por ahora.
+          </div>
+        ) : (
+          citasPorDia.map((grupo) => (
+            <div key={grupo.fecha}>
+              <div className="adm-group-label">
+                {formatearFechaRelativa(grupo.fecha)}
+                <span className="adm-chip">{grupo.items.length} {grupo.items.length === 1 ? 'cita' : 'citas'}</span>
+                {grupo.fecha < hoyISO && <span className="adm-chip bg-amber">Sin cobrar</span>}
+              </div>
+              <div className="ag-grid">
+                {grupo.items.map((cita) => (
+                  <article key={cita.id} className={`ag-card ${cita.fecha === hoyISO ? 'is-today' : ''}`}>
+                    <div className="ag-head">
+                      <div className="ag-timebox">
+                        <strong>{formato12h(cita.hora.substring(0, 5)).split(' ')[0]}</strong>
+                        <span>{formato12h(cita.hora.substring(0, 5)).split(' ')[1]}</span>
+                      </div>
+                      <div className="ag-who">
+                        <h3 className="ag-name">{cita.cliente_nombre} {cita.apellido}</h3>
+                        <p className="ag-meta">
+                          <span><CalendarDays size={12} /> {formatearFechaCorta(cita.fecha)}</span>
+                          {cita.telefono && <span><Phone size={12} /> {cita.telefono}</span>}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="ag-service">
+                      <span className="ag-service-icon"><Scissors size={14} /></span>
+                      {cita.servicio}
+                      {cita.fecha === hoyISO && <span className="ag-today">Hoy</span>}
+                    </div>
+
+                    <div className="ag-actions">
+                      <button onClick={() => enviarRecordatorioWhatsApp(cita)} className="adm-btn adm-btn--wa adm-btn--icon" title="Recordar por WhatsApp" aria-label={`Recordar a ${cita.cliente_nombre} por WhatsApp`}>
+                        <MessageCircle size={17} />
+                      </button>
+                      <button onClick={() => { setCitaToCancel(cita); setIsModalCancelOpen(true); }} className="adm-btn adm-btn--danger-ghost adm-btn--sm">
+                        Cancelar
+                      </button>
+                      <button onClick={() => iniciarCobro(cita)} className="adm-btn adm-btn--green adm-btn--sm">
+                        <Banknote size={15} /> Cobrar
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* ─── HORARIO SEMANAL ─── */}
+      <div className="adm-card adm-section-gap adm-anim">
+        <div className="adm-card-head">
+          <div>
+            <h2 className="adm-card-title">Horario semanal</h2>
+            <p className="adm-card-sub">
+              Mañanas <b style={{ color: 'var(--adm-text)' }}>cerradas</b> por defecto: tócalas para abrir.
+              Tardes <b style={{ color: 'var(--adm-text)' }}>abiertas</b>: tócalas para cerrar.
+              Los cambios de horario se repiten todas las semanas.
+            </p>
+          </div>
+          <div className="hr-legend">
+            <span><i className="hr-sw cita" /> Cita</span>
+            <span><i className="hr-sw abierto" /> Abierto</span>
+            <span><i className="hr-sw cerrado" /> Cerrado</span>
+            <span><i className="hr-sw bloqueado" /> Tarde cerrada</span>
+          </div>
+        </div>
+
+        <div className="hr-weeknav">
+          <button type="button" className="adm-btn adm-btn--subtle adm-btn--icon" onClick={() => setSemanaOffset(o => o - 1)} aria-label="Semana anterior"><ChevronLeft size={18} /></button>
+          <div className="hr-weeknav-label">
+            <strong>{semanaOffset === 0 ? 'Esta semana' : semanaOffset === 1 ? 'Próxima semana' : semanaOffset === -1 ? 'Semana pasada' : 'Semana'}</strong>
+            <span>{formatearFechaCorta(fechasSemana[0])} – {formatearFechaCorta(fechasSemana[5])}</span>
+          </div>
+          <button type="button" className="adm-btn adm-btn--subtle adm-btn--icon" onClick={() => setSemanaOffset(o => o + 1)} aria-label="Semana siguiente"><ChevronRight size={18} /></button>
+          {semanaOffset !== 0 && (
+            <button type="button" className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setSemanaOffset(0)}>Hoy</button>
+          )}
+        </div>
+
+        {/* Escritorio: tabla completa */}
+        <div className="hr-table-wrap">
+          <table className="hr-table">
             <thead>
               <tr>
-                <th style={thStyle}>Hora</th>
-                {diasSemana.map(d => <th key={d} style={thStyle}>{d}</th>)}
+                <th className="hr-hora">Hora</th>
+                {diasSemana.map((d, idx) => (
+                  <th key={d} className={fechasSemana[idx] === hoyISO ? 'hr-today' : ''}>
+                    {d}
+                    <small>{Number(fechasSemana[idx].slice(8))}</small>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {bloquesHorarios.map(h => {
-                const isManana = parseInt(h.split(':')[0]) < 14;
-
-                return (
-                  <tr key={h}>
-                    <td style={{...tdStyle, fontWeight: 'bold', color: 'var(--gold)'}}>{formato12h(h)}</td>
-                    {diasSemana.map((d, idx) => {
-                      const horaDB = `${h}:00`;
-                      const cita = getCitaEnCelda(idx, h);
-                      const estaSeleccionado = seleccion[`${d}-${h}`];
-
-                      let bgColor = '#111'; 
-                      let textColor = '#fff';
-                      let cursorStyle = 'pointer';
-                      let texto = '';
-
-                      if (isManana) {
-                        const apertura = bloqueos.some(b => b.dia_semana === idx + 1 && b.hora_inicio === horaDB && b.hora_fin === horaDB);
-                        if (cita) { bgColor = 'var(--gold)'; textColor = '#000'; cursorStyle = 'not-allowed'; texto = cita.cliente_nombre; } 
-                        else if (apertura) { bgColor = '#111'; textColor = '#00C851'; texto = 'ABIERTO'; } 
-                        else if (estaSeleccionado) { bgColor = '#00C851'; textColor = '#000'; texto = 'ABRIR'; } 
-                        else { bgColor = '#1a1a1a'; textColor = '#444'; texto = 'CERRADO'; }
-                      } else {
-                        const cierre = bloqueos.some(b => b.dia_semana === idx + 1 && b.hora_inicio === horaDB && b.hora_fin !== horaDB);
-                        if (cita) { bgColor = 'var(--gold)'; textColor = '#000'; cursorStyle = 'not-allowed'; texto = cita.cliente_nombre; } 
-                        else if (cierre) { bgColor = '#ff4444'; textColor = '#fff'; texto = 'CERRADO'; } 
-                        else if (estaSeleccionado) { bgColor = '#ff6b6b'; textColor = '#fff'; texto = 'CERRAR'; }
-                      }
-
-                      return (
-                        <td key={d} onClick={() => toggleCelda(d, h, idx)} style={{...tdStyle, background: bgColor, color: textColor, cursor: cursorStyle, fontWeight: cita ? 'bold' : 'normal', border: '1px solid #222'}}>
-                          {texto}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                )
-              })}
+              {bloquesHorarios.map(h => (
+                <tr key={h} className={h === '14:00' ? 'hr-split' : ''}>
+                  <td className="hr-hora">{formato12h(h)}</td>
+                  {diasSemana.map((d, idx) => {
+                    const { clase, texto } = estadoCelda(d, h, idx);
+                    return (
+                      <td key={d}>
+                        <button type="button" className={`hr-slot ${clase}`} onClick={() => toggleCelda(d, h, idx)} title={texto || 'Libre'}>
+                          <span>{texto}</span>
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
             </tbody>
           </table>
-          
-          {Object.keys(seleccion).length > 0 && (
-            <button onClick={aplicarCambios} style={{ width: '100%', background: 'var(--gold)', color: '#000', border: 'none', padding: '1.2rem', borderRadius: '8px', fontWeight: 'bold', marginTop: '1.5rem', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', animation: 'fadeInUp 0.3s ease' }}>
-              Guardar Cambios de Horario
-            </button>
-          )}
-        </section>
+        </div>
 
-        {/* ─── AGENDA DE CITAS ACTIVAS ─── */}
-        <main>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.5rem', margin: 0, color: 'var(--gold)' }}>Agenda Activa</h2>
-            <button 
-              onClick={() => setIsModalFijaOpen(true)}
-              style={{
-                background: 'var(--gold)',
-                color: '#000',
-                border: 'none',
-                padding: '0.9rem 1.6rem',
-                borderRadius: '50px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                fontSize: '0.8rem',
-                boxShadow: '0 4px 15px rgba(212, 175, 55, 0.25)'
-              }}
-            >
-              ➕ Agendar Plan Mensual / Cita Fija
-            </button>
+        {/* Celular: un día a la vez */}
+        <div className="hr-mobile">
+          <div className="adm-seg hr-days">
+            {diasSemana.map((d, idx) => (
+              <button key={d} className={`${diaMovil === idx ? 'active' : ''} ${fechasSemana[idx] === hoyISO ? 'is-today' : ''}`} onClick={() => setDiaMovil(idx)} style={{ flex: 1, justifyContent: 'center' }}>
+                <span className="hr-day-btn">{d.slice(0, 3)}<small>{Number(fechasSemana[idx].slice(8))}</small></span>
+              </button>
+            ))}
           </div>
-
-          {loading ? <p style={{ color: 'var(--grey)' }}>Cargando agenda...</p> : citas.length === 0 ? (
-            <div style={{ padding: '3rem', border: '1px dashed #333', textAlign: 'center', borderRadius: '12px' }}>
-              <p style={{ color: 'var(--grey)' }}>La agenda está limpia. No hay citas pendientes.</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-              {citas.map((cita) => (
-                <div key={cita.id} style={{ background: '#111', border: '1px solid #222', padding: '1.5rem', borderRadius: '12px', borderLeft: '4px solid var(--gold)', boxShadow: '0 8px 30px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', justifyItems: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{cita.fecha}</span>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formato12h(cita.hora.substring(0, 5))}</span>
-                    </div>
-                    <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', textTransform: 'capitalize' }}>{cita.cliente_nombre} {cita.apellido}</h3>
-                    <p style={{ color: 'var(--grey)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Servicio: <span style={{ color: 'var(--cream)', fontWeight: 'bold' }}>{cita.servicio}</span></p>
-                  </div>
-
-                  {/* ─── BOTONES DE ACCIÓN EN LA TARJETA ─── */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', borderTop: '1px solid #222', paddingTop: '1.2rem', marginTop: 'auto' }}>
-                    <button 
-                      onClick={() => enviarRecordatorioWhatsApp(cita)} 
-                      style={btnWhatsApp}
-                      title="Abrir chat con mensaje de recordatorio listo"
-                    >
-                      📲 Recordar por WhatsApp
-                    </button>
-
-                    <div style={{ display: 'flex', gap: '0.8rem' }}>
-                      <button onClick={() => { setCitaToCancel(cita); setIsModalCancelOpen(true); }} style={btnCancel}>Cancelar</button>
-                      <button onClick={() => iniciarCobro(cita)} style={btnCobrar}>Cobrar</button>
-                    </div>
-                  </div>
-
-                </div>
-              ))}
-            </div>
-          )}
-        </main>
-
-        {/* ─── MODAL: AGENDAR PLAN MENSUAL / CITA FIJA ─── */}
-        {isModalFijaOpen && (
-          <div style={overlayStyle}>
-            <div style={{ ...modalStyle, maxWidth: '520px', textAlign: 'left', maxHeight: '90vh', overflowY: 'auto' }}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.7rem', color: 'var(--gold)', marginBottom: '0.4rem', textAlign: 'center' }}>
-                Plan Mensual / Cita Fija
-              </h3>
-              <p style={{ color: 'var(--grey)', fontSize: '0.85rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-                Configura el día fijo del mes y elige el servicio para cada semana.
-              </p>
-
-              <form onSubmit={guardarCitasFijas} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-                  <div>
-                    <label style={labelModalStyle}>Nombre del Cliente *</label>
-                    <input
-                      type="text"
-                      placeholder="Ej. Carlos"
-                      value={formFija.cliente_nombre}
-                      onChange={e => setFormFija({ ...formFija, cliente_nombre: e.target.value })}
-                      style={inputModalStyle}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={labelModalStyle}>Teléfono (WhatsApp)</label>
-                    <input
-                      type="text"
-                      placeholder="Ej. 88888888"
-                      value={formFija.telefono}
-                      onChange={e => setFormFija({ ...formFija, telefono: e.target.value })}
-                      style={inputModalStyle}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.8rem' }}>
-                  <div>
-                    <label style={labelModalStyle}>Mes</label>
-                    <input
-                      type="month"
-                      value={formFija.mes}
-                      onChange={e => setFormFija({ ...formFija, mes: e.target.value })}
-                      style={inputModalStyle}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={labelModalStyle}>Día Fijo</label>
-                    <select
-                      value={formFija.diaSemana}
-                      onChange={e => setFormFija({ ...formFija, diaSemana: Number(e.target.value) })}
-                      style={inputModalStyle}
-                    >
-                      {diasSemana.map((d, i) => (
-                        <option key={d} value={i + 1}>{d}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelModalStyle}>Hora Fija</label>
-                    <select
-                      value={formFija.hora}
-                      onChange={e => setFormFija({ ...formFija, hora: e.target.value })}
-                      style={inputModalStyle}
-                    >
-                      {bloquesHorarios.map(h => (
-                        <option key={h} value={h}>{formato12h(h)}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* LISTA DE SEMANAS DEL MES */}
-                <div style={{ background: '#111', padding: '1rem', borderRadius: '10px', border: '1px solid #222', marginTop: '0.5rem' }}>
-                  <p style={{ color: 'var(--gold)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.8rem', fontWeight: 'bold' }}>
-                    Servicios por semana ({diasSemana[formFija.diaSemana - 1]}):
-                  </p>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                    {fechasMes.map((item, idx) => (
-                      <div key={item.fecha} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', background: '#0a0a0a', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #222' }}>
-                        <div>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff' }}>
-                            {item.etiqueta} {diasSemana[formFija.diaSemana - 1]}
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--grey)' }}>
-                            Fecha: {item.fecha}
-                          </div>
-                        </div>
-
-                        <select
-                          value={item.servicio}
-                          onChange={e => cambiarServicioFecha(idx, e.target.value)}
-                          style={{ ...inputModalStyle, width: 'auto', minWidth: '155px', padding: '0.45rem 0.6rem' }}
-                        >
-                          <option value="Corte y Barba">Corte y Barba (₡6000)</option>
-                          <option value="Corte">Solo Corte (₡4000)</option>
-                          <option value="Barba">Solo Barba (₡2000)</option>
-                          <option value="ninguno">-- No agendar --</option>
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                  <button type="button" onClick={() => setIsModalFijaOpen(false)} style={btnBack}>
-                    Cancelar
-                  </button>
-                  <button type="submit" disabled={guardandoFijas} style={btnConfirmGold}>
-                    {guardandoFijas ? 'Guardando...' : 'Agendar Citas del Mes'}
-                  </button>
-                </div>
-              </form>
-            </div>
+          <div className="hr-mobile-list">
+            {bloquesHorarios.map(h => {
+              const d = diasSemana[diaMovil];
+              const { clase, texto } = estadoCelda(d, h, diaMovil);
+              return (
+                <button key={h} type="button" className={`hr-mrow ${clase} ${h === '14:00' ? 'hr-split' : ''}`} onClick={() => toggleCelda(d, h, diaMovil)}>
+                  <span className="hr-mrow-time">{formato12h(h)}</span>
+                  <span className={`hr-slot ${clase}`}><span>{texto || 'Libre'}</span></span>
+                </button>
+              );
+            })}
           </div>
-        )}
-
-        {/* ─── MODALES (PAGO, CANCELAR Y DESBLOQUEO) ─── */}
-        {isModalPagoOpen && (
-          <div style={overlayStyle}>
-            <div style={modalStyle}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', color: 'var(--gold)', marginBottom: '0.5rem' }}>Procesar Cobro</h3>
-              <p style={{ color: 'var(--grey)', fontSize: '0.9rem', marginBottom: '2rem' }}>Finalizando cita de <span style={{ color: 'white' }}>{citaActiva?.cliente_nombre}</span>.</p>
-              
-              <div style={{ background: '#111', padding: '1.5rem', borderRadius: '8px', border: '1px solid #333', marginBottom: '2rem' }}>
-                <p style={{ color: 'var(--grey)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Total a cobrar (₡)</p>
-                <input 
-                  type="number" 
-                  value={precioEditable} 
-                  onChange={(e) => setPrecioEditable(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: '2px solid #00C851',
-                    color: '#00C851',
-                    fontSize: '2.5rem',
-                    width: '100%',
-                    textAlign: 'center',
-                    outline: 'none',
-                    fontWeight: 'bold',
-                    fontFamily: 'system-ui, sans-serif'
-                  }}
-                  required
-                  min="0"
-                />
-                <p style={{ color: 'var(--cream)', marginTop: '0.5rem', fontWeight: 'bold' }}>{citaActiva?.servicio}</p>
-              </div>
-
-              <form onSubmit={procesarPago} style={{ display: 'flex', gap: '1rem' }}>
-                <button type="button" onClick={() => setIsModalPagoOpen(false)} style={btnBack}>Atrás</button>
-                <button type="submit" style={btnConfirmGreen}>Confirmar Pago</button>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {isModalCancelOpen && (
-          <div style={overlayStyle}>
-            <div style={{ ...modalStyle, border: '1px solid rgba(255, 68, 68, 0.3)' }}>
-              <div style={iconWarningStyle}>⚠️</div>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', color: '#fff', marginBottom: '0.5rem' }}>¿Cancelar cita?</h3>
-              <p style={{ color: 'var(--grey)', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: '1.5' }}>Se eliminará a <span style={{ color: 'white', fontWeight: 'bold' }}>{citaToCancel?.cliente_nombre}</span> de la agenda.</p>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button onClick={() => setIsModalCancelOpen(false)} style={btnBack}>Mantener</button>
-                <button onClick={confirmarCancelacion} style={btnConfirmRed}>Sí, cancelar</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {modalDesbloqueo.isOpen && (
-          <div style={overlayStyle}>
-            <div style={modalStyle}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', color: 'var(--cream)', marginBottom: '0.5rem' }}>Modificar Horario</h3>
-              <p style={{ color: 'var(--grey)', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: '1.5' }}>
-                Estás a punto de volver a <strong style={{color: 'white'}}>{modalDesbloqueo.tipo === 'cerrar_manana' ? 'CERRAR' : 'ABRIR'}</strong> el {modalDesbloqueo.dia} a las {formato12h(modalDesbloqueo.hora)}.
-              </p>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button onClick={() => setModalDesbloqueo({ isOpen: false, id: null, dia: '', hora: '', tipo: '' })} style={btnBack}>Cancelar</button>
-                <button onClick={confirmarDesbloqueo} style={btnConfirmLight}>Confirmar</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {modalAlerta.isOpen && (
-          <div style={overlayStyle}>
-            <div style={{ ...modalStyle, border: '1px solid rgba(212, 175, 55, 0.3)' }}>
-              <div style={iconAlertStyle}>!</div>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: '#fff', marginBottom: '1rem' }}>Atención</h3>
-              <p style={{ color: 'var(--grey)', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: '1.5' }}>{modalAlerta.mensaje}</p>
-              <button onClick={() => setModalAlerta({ isOpen: false, mensaje: '' })} style={btnConfirmGold}>Entendido</button>
-            </div>
-          </div>
-        )}
-
+        </div>
       </div>
-      
+
+      {/* Barra flotante para guardar cambios de horario */}
+      {cambiosPendientes > 0 && (
+        <div className="adm-floatbar" role="status">
+          <span className="adm-floatbar-text">{cambiosPendientes} {cambiosPendientes === 1 ? 'cambio' : 'cambios'} sin guardar</span>
+          <button onClick={() => setSeleccion({})} className="adm-btn adm-btn--subtle adm-btn--sm">Descartar</button>
+          <button onClick={aplicarCambios} className="adm-btn adm-btn--primary adm-btn--sm" disabled={guardandoHorario}>{guardandoHorario ? 'Guardando…' : 'Guardar'}</button>
+        </div>
+      )}
+
+      {/* ─── MODAL: PLAN MENSUAL / CITA FIJA ─── */}
+      <AdminModal open={isModalFijaOpen} onClose={() => setIsModalFijaOpen(false)} title="Plan mensual" width="540px">
+        <p className="adm-modal-text" style={{ marginBottom: '1.2rem' }}>Agenda al mismo cliente el mismo día y hora cada semana del mes.</p>
+
+        <form onSubmit={guardarCitasFijas} className="adm-form">
+          <div className="adm-field-row">
+            <label className="adm-field">
+              <span className="adm-label">Cliente *</span>
+              <input type="text" className="adm-input" placeholder="Ej. Carlos" value={formFija.cliente_nombre} onChange={e => setFormFija({ ...formFija, cliente_nombre: e.target.value })} required />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">WhatsApp</span>
+              <input type="tel" className="adm-input" placeholder="88888888" inputMode="numeric" value={formFija.telefono} onChange={e => setFormFija({ ...formFija, telefono: e.target.value })} />
+            </label>
+          </div>
+
+          <div className="adm-field-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
+            <label className="adm-field">
+              <span className="adm-label">Mes</span>
+              <input type="month" className="adm-input" value={formFija.mes} onChange={e => setFormFija({ ...formFija, mes: e.target.value })} required />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Día fijo</span>
+              <select className="adm-input" value={formFija.diaSemana} onChange={e => setFormFija({ ...formFija, diaSemana: Number(e.target.value) })}>
+                {diasSemana.map((d, i) => <option key={d} value={i + 1}>{d}</option>)}
+              </select>
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Hora</span>
+              <select className="adm-input" value={formFija.hora} onChange={e => setFormFija({ ...formFija, hora: e.target.value })}>
+                {bloquesHorarios.map(h => <option key={h} value={h}>{formato12h(h)}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="pm-weeks">
+            <span className="adm-label">Servicio por semana · {diasSemana[formFija.diaSemana - 1]}</span>
+            {fechasMes.map((item, idx) => (
+              <div key={item.fecha} className={`pm-week ${item.servicio === 'ninguno' ? 'is-off' : ''}`} title={item.pasada ? 'Esta fecha ya pasó' : undefined}>
+                <div style={{ minWidth: 0 }}>
+                  <div className="adm-row-title" style={{ fontSize: '0.88rem' }}>{item.etiqueta} {diasSemana[formFija.diaSemana - 1].toLowerCase()}</div>
+                  <div className="adm-row-meta">{formatearFechaCorta(item.fecha)}{item.pasada ? ' · ya pasó' : ''}</div>
+                </div>
+                <select className="adm-input" value={item.servicio} disabled={item.pasada} onChange={e => cambiarServicioFecha(idx, e.target.value)} style={{ width: 'auto', minWidth: '170px', minHeight: '40px', padding: '0.45rem 2.2rem 0.45rem 0.7rem', fontSize: '0.85rem' }}>
+                  {SERVICIOS.map(serv => (
+                    <option key={serv.id} value={serv.nombre}>{serv.nombre === 'Corte y Barba' ? serv.nombre : `Solo ${serv.nombre}`} ({formatearPrecio(serv.precio)})</option>
+                  ))}
+                  <option value="ninguno">— No agendar —</option>
+                </select>
+              </div>
+            ))}
+          </div>
+
+          <div className="adm-modal-actions">
+            <button type="button" onClick={() => setIsModalFijaOpen(false)} className="adm-btn adm-btn--ghost">Cancelar</button>
+            <button type="submit" disabled={guardandoFijas} className="adm-btn adm-btn--primary">
+              {guardandoFijas ? 'Guardando…' : 'Agendar mes'}
+            </button>
+          </div>
+        </form>
+      </AdminModal>
+
+      {/* ─── MODAL: COBRO ─── */}
+      <AdminModal open={isModalPagoOpen} onClose={() => setIsModalPagoOpen(false)} center icon={<Banknote size={24} />} iconTone="green" title="Cobrar cita">
+        <p className="adm-modal-text" style={{ marginBottom: '1.2rem' }}>
+          Finalizando la cita de <b style={{ textTransform: 'capitalize' }}>{citaActiva?.cliente_nombre}</b>.
+        </p>
+        <form onSubmit={procesarPago}>
+          <div className="pg-box">
+            <span className="adm-label">Total a cobrar</span>
+            <div className="pg-amount">
+              <span>₡</span>
+              <input type="number" value={precioEditable} onChange={(e) => setPrecioEditable(e.target.value)} required min="0" inputMode="numeric" aria-label="Total a cobrar" />
+            </div>
+            <span className="adm-chip"><Scissors size={12} /> {citaActiva?.servicio}</span>
+          </div>
+          <div className="adm-modal-actions">
+            <button type="button" onClick={() => setIsModalPagoOpen(false)} className="adm-btn adm-btn--ghost">Atrás</button>
+            <button type="submit" className="adm-btn adm-btn--green">Confirmar pago</button>
+          </div>
+        </form>
+      </AdminModal>
+
+      {/* ─── MODAL: CANCELAR ─── */}
+      <AdminModal open={isModalCancelOpen} center icon={<AlertTriangle size={24} />} iconTone="red" title="¿Cancelar cita?">
+        <p className="adm-modal-text">
+          Se quitará a <b style={{ textTransform: 'capitalize' }}>{citaToCancel?.cliente_nombre}</b> de la agenda.
+        </p>
+        <div className="adm-modal-actions" style={{ marginTop: 0 }}>
+          <button onClick={() => setIsModalCancelOpen(false)} className="adm-btn adm-btn--ghost">Mantener</button>
+          <button onClick={confirmarCancelacion} className="adm-btn adm-btn--danger">Sí, cancelar</button>
+        </div>
+      </AdminModal>
+
+      {/* ─── MODAL: DESBLOQUEO ─── */}
+      <AdminModal open={modalDesbloqueo.isOpen} center icon={<Clock size={24} />} title="Modificar horario">
+        <p className="adm-modal-text">
+          Vas a volver a <b>{modalDesbloqueo.tipo === 'cerrar_manana' ? 'CERRAR' : 'ABRIR'}</b> el {modalDesbloqueo.dia} a las {formato12h(modalDesbloqueo.hora)}.
+        </p>
+        <div className="adm-modal-actions" style={{ marginTop: 0 }}>
+          <button onClick={() => setModalDesbloqueo({ isOpen: false, id: null, dia: '', hora: '', tipo: '' })} className="adm-btn adm-btn--ghost">Cancelar</button>
+          <button onClick={confirmarDesbloqueo} className="adm-btn adm-btn--primary">Confirmar</button>
+        </div>
+      </AdminModal>
+
+      {/* ─── MODAL: ALERTA ─── */}
+      <AdminModal open={modalAlerta.isOpen} center icon={<Info size={24} />} iconTone="amber" title="Atención">
+        <p className="adm-modal-text">{modalAlerta.mensaje}</p>
+        <button onClick={() => setModalAlerta({ isOpen: false, mensaje: '' })} className="adm-btn adm-btn--primary adm-btn--block">Entendido</button>
+      </AdminModal>
+
       <style>{`
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-          -webkit-appearance: none; 
-          margin: 0; 
+        /* Tarjetas de citas */
+        .ag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.9rem; }
+        .ag-card {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          background: linear-gradient(180deg, #121211 0%, var(--adm-surface) 100%);
+          border: 1px solid var(--adm-line);
+          border-radius: 20px;
+          padding: 1.1rem;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+          transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
         }
+        .ag-card:hover { border-color: var(--adm-line-strong); transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 18px 36px -20px rgba(0,0,0,0.9); }
+        .ag-card.is-today {
+          border-color: rgba(61, 220, 132, 0.28);
+          background:
+            radial-gradient(120% 90% at 0% 0%, rgba(61, 220, 132, 0.09) 0%, transparent 55%),
+            linear-gradient(180deg, #121211 0%, var(--adm-surface) 100%);
+        }
+        .ag-head { display: flex; align-items: center; gap: 0.9rem; }
+        .ag-timebox {
+          flex-shrink: 0;
+          width: 74px;
+          height: 74px;
+          border-radius: 16px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: var(--adm-surface-3);
+          box-shadow: inset 0 0 0 1px var(--adm-line-strong);
+        }
+        .ag-timebox strong { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+        .ag-timebox span { margin-top: 0.3rem; font-size: 0.62rem; letter-spacing: 0.2em; color: var(--adm-muted); font-weight: 600; }
+        .ag-card.is-today .ag-timebox { background: var(--adm-text); color: #000; box-shadow: none; }
+        .ag-card.is-today .ag-timebox span { color: rgba(0, 0, 0, 0.55); }
+        .ag-who { min-width: 0; flex: 1; }
+        .ag-name { font-size: 1.08rem; font-weight: 700; text-transform: capitalize; margin-bottom: 0.35rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ag-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; color: var(--adm-muted); font-size: 0.78rem; }
+        .ag-meta span { display: inline-flex; align-items: center; gap: 0.3rem; }
+        .ag-service {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0.6rem 0.7rem;
+          border-radius: 12px;
+          background: rgba(245, 245, 220, 0.035);
+          border: 1px solid var(--adm-line);
+          font-size: 0.86rem;
+          font-weight: 600;
+        }
+        .ag-service-icon { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--adm-surface-3); color: var(--adm-muted); }
+        .ag-today { margin-left: auto; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--adm-green); font-weight: 700; }
+        .ag-actions { display: grid; grid-template-columns: auto 1fr 1fr; gap: 0.5rem; margin-top: auto; }
+
+        /* Leyenda */
+        .hr-legend { display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.75rem; color: var(--adm-muted); }
+        .hr-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+        .hr-sw { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+        .hr-sw.cita { background: var(--adm-text); }
+        .hr-sw.abierto { background: var(--adm-green-soft); box-shadow: inset 0 0 0 1px var(--adm-green); }
+        .hr-sw.cerrado { background: repeating-linear-gradient(135deg, #1a1a1a 0 3px, #111 3px 6px); box-shadow: inset 0 0 0 1px var(--adm-line-strong); }
+        .hr-sw.bloqueado { background: var(--adm-red-soft); box-shadow: inset 0 0 0 1px var(--adm-red); }
+
+        /* Celdas */
+        .hr-slot {
+          width: 100%;
+          height: 34px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: none;
+          border-radius: 8px;
+          background: var(--adm-surface-2);
+          color: var(--adm-muted);
+          font-family: 'DM Sans', sans-serif;
+          font-size: 0.72rem;
+          font-weight: 600;
+          letter-spacing: 0.03em;
+          cursor: pointer;
+          transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+          overflow: hidden;
+          padding: 0 0.4rem;
+        }
+        .hr-slot span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hr-slot.libre:hover { box-shadow: inset 0 0 0 1px var(--adm-red); }
+        .hr-slot.libre:hover span::after { content: 'Cerrar'; color: var(--adm-red); }
+        .hr-slot.cerrado { background: repeating-linear-gradient(135deg, #161616 0 4px, #101010 4px 8px); color: var(--adm-dim); }
+        .hr-slot.cerrado:hover { box-shadow: inset 0 0 0 1px var(--adm-green); color: var(--adm-green); }
+        .hr-slot.abierto { background: var(--adm-green-soft); color: var(--adm-green); }
+        .hr-slot.abrir { background: var(--adm-green); color: #000; animation: hrPulse 1.6s ease-in-out infinite; }
+        .hr-slot.bloqueado { background: var(--adm-red-soft); color: var(--adm-red); }
+        .hr-slot.cerrar { background: var(--adm-red); color: #fff; animation: hrPulse 1.6s ease-in-out infinite; }
+        .hr-slot.cita { background: var(--adm-text); color: #000; font-weight: 700; cursor: not-allowed; text-transform: capitalize; }
+        .hr-slot.cita.cont { background: rgba(245, 245, 220, 0.55); color: rgba(0, 0, 0, 0.6); font-weight: 600; text-transform: none; }
+        .hr-weeknav { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .hr-weeknav-label { display: flex; flex-direction: column; min-width: 170px; text-align: center; }
+        .hr-weeknav-label strong { font-size: 0.95rem; }
+        .hr-weeknav-label span { font-size: 0.75rem; color: var(--adm-muted); }
+        .hr-table th small { display: block; margin-top: 0.2rem; font-size: 0.9rem; letter-spacing: 0; color: var(--adm-text); font-weight: 700; }
+        .hr-table th.hr-today { color: var(--adm-green); }
+        .hr-table th.hr-today small { color: #000; background: var(--adm-green); border-radius: 999px; width: 28px; height: 28px; line-height: 28px; margin: 0.25rem auto 0; }
+        .hr-day-btn { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+        .hr-day-btn small { font-size: 0.85rem; font-weight: 700; color: var(--adm-text); }
+        .hr-days button.is-today small { color: var(--adm-green); }
+        @keyframes hrPulse { 50% { opacity: 0.75; } }
+
+        /* Tabla (escritorio) */
+        .hr-table-wrap { overflow: auto; max-height: 640px; border-radius: 12px; border: 1px solid var(--adm-line); }
+        .hr-table { width: 100%; border-collapse: separate; border-spacing: 4px; font-size: 0.8rem; min-width: 760px; }
+        .hr-table th {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          background: var(--adm-surface);
+          padding: 0.7rem 0.4rem;
+          font-size: 0.7rem;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--adm-muted);
+          font-weight: 600;
+        }
+        .hr-table td { padding: 0; }
+        .hr-table .hr-hora {
+          position: sticky;
+          left: 0;
+          z-index: 1;
+          background: var(--adm-surface);
+          color: var(--adm-text);
+          font-weight: 600;
+          font-size: 0.75rem;
+          white-space: nowrap;
+          padding: 0 0.6rem;
+          text-align: right;
+          font-variant-numeric: tabular-nums;
+        }
+        .hr-table th.hr-hora { z-index: 3; }
+        .hr-table tr.hr-split td { padding-top: 10px; }
+
+        /* Lista (celular) */
+        .hr-mobile { display: none; }
+        .hr-days { display: grid; grid-template-columns: repeat(6, 1fr); width: 100%; margin-bottom: 1rem; }
+        .hr-days button { padding: 0.55rem 0; justify-content: center; }
+        .hr-mobile-list { display: flex; flex-direction: column; gap: 0.35rem; }
+        .hr-mrow {
+          display: grid;
+          grid-template-columns: 78px 1fr;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0;
+          border: none;
+          background: none;
+          cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+          text-align: left;
+        }
+        .hr-mrow.hr-split { margin-top: 0.8rem; }
+        .hr-mrow-time { color: var(--adm-text); font-size: 0.8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .hr-mrow .hr-slot { height: 40px; justify-content: flex-start; padding: 0 0.9rem; }
+        .hr-mrow .hr-slot.libre span { color: var(--adm-dim); }
+
+        @media (max-width: 760px) {
+          .hr-table-wrap { display: none; }
+          .hr-mobile { display: block; }
+          .hr-legend { gap: 0.7rem; }
+        }
+
+        /* Plan mensual */
+        .pm-weeks { display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem; background: var(--adm-surface); border: 1px solid var(--adm-line); border-radius: 14px; }
+        .pm-weeks > .adm-label { margin-bottom: 0.3rem; }
+        .pm-week { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.55rem 0.55rem 0.55rem 0.8rem; background: var(--adm-surface-2); border-radius: 10px; transition: opacity 0.2s ease; }
+        .pm-week.is-off { opacity: 0.45; }
+        @media (max-width: 480px) {
+          .pm-week { flex-direction: column; align-items: stretch; }
+          .pm-week select { width: 100% !important; }
+        }
+
+        /* Cobro */
+        .pg-box { display: flex; flex-direction: column; align-items: center; gap: 0.7rem; padding: 1.3rem 1rem; background: var(--adm-surface); border: 1px solid var(--adm-line); border-radius: 16px; }
+        .pg-amount { display: flex; align-items: baseline; justify-content: center; gap: 0.2rem; color: var(--adm-green); font-weight: 700; }
+        .pg-amount span { font-size: 1.8rem; }
+        .adm .pg-amount input {
+          width: 7ch;
+          background: transparent;
+          border: none;
+          border-bottom: 2px solid rgba(61, 220, 132, 0.4);
+          border-radius: 0;
+          padding: 0;
+          color: var(--adm-green);
+          font-family: 'DM Sans', sans-serif;
+          font-size: 2.6rem;
+          font-weight: 700;
+          text-align: center;
+          outline: none;
+          font-variant-numeric: tabular-nums;
+        }
+        .adm .pg-amount input:focus { border-bottom-color: var(--adm-green); }
       `}</style>
-    </div>
+    </AdminLayout>
   );
 }
-
-// ─── ESTILOS REUTILIZABLES ───
-const thStyle = { border: '1px solid #222', padding: '12px', color: 'var(--gold)', background: '#111', textTransform: 'uppercase', letterSpacing: '0.1em' };
-const tdStyle = { border: '1px solid #222', padding: '10px', textAlign: 'center', height: '45px', verticalAlign: 'middle', transition: 'background 0.2s ease', fontSize: '0.85rem' };
-const btnCancel = { flex: 1, background: 'rgba(255, 68, 68, 0.05)', border: '1px solid rgba(255,68,68,0.5)', color: '#ff4444', padding: '0.8rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' };
-const btnCobrar = { flex: 1, background: '#00C851', border: 'none', color: '#000', padding: '0.8rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' };
-const btnWhatsApp = { width: '100%', background: '#25D366', border: 'none', color: '#000', padding: '0.7rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'opacity 0.2s' };
-const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const modalStyle = { background: '#0a0a0a', border: '1px solid #222', padding: '2.5rem', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' };
-const iconWarningStyle = { width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '1.8rem' };
-const iconAlertStyle = { width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '2rem', fontWeight: 'bold' };
-const btnBack = { flex: 1, background: 'transparent', border: '1px solid #444', color: 'var(--grey)', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
-const btnConfirmGreen = { flex: 1, background: '#00C851', border: 'none', color: '#000', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
-const btnConfirmRed = { flex: 1, background: '#ff4444', border: 'none', color: '#fff', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
-const btnConfirmLight = { flex: 1, background: 'var(--cream)', border: 'none', color: '#000', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
-const btnConfirmGold = { flex: 1, width: '100%', background: 'var(--gold)', border: 'none', color: '#000', padding: '0.9rem', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' };
-const labelModalStyle = { display: 'block', fontSize: '0.75rem', color: 'var(--grey)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' };
-const inputModalStyle = { width: '100%', background: '#151515', border: '1px solid #333', color: '#fff', padding: '0.7rem', borderRadius: '8px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' };

@@ -2,6 +2,18 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { CheckCircle } from 'lucide-react';
 import emailjs from '@emailjs/browser'; 
+import { duracionServicio, precioServicio, aMinutos, aHora, seCruzan, HORA_APERTURA, HORA_CIERRE, INICIO_TARDE, INTERVALO_MIN } from '../../utils/servicios';
+import { hoyCR, horaCR, diaSemana, formatearHora } from '../../utils/formato';
+
+// UUID v4 aleatorio (usa crypto.randomUUID cuando está disponible)
+const generarToken = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+};
 
 export default function BookingForm({ selectedService }) {
   const [formData, setFormData] = useState({ dia: '', hora: '', nombre: '', apellido: '', email: '', telefono: '' });
@@ -18,21 +30,9 @@ export default function BookingForm({ selectedService }) {
     return new Date(crTime);
   };
 
-  // ─── DICCIONARIO DE DURACIONES (En minutos) ───
-  const obtenerDuracionMinutos = (servicio) => {
-    if (!servicio) return 60;
-    const s = servicio.toLowerCase();
-    // Si es SOLO barba, dura 30 minutos. Todo lo demás (Cortes, Combos) dura 60 minutos.
-    if (s.includes('barba') && !s.includes('corte')) return 30; 
-    return 60; 
-  };
-
-  // Convierte "15:30" a 930 minutos (facilita la matemática de colisiones)
-  const minutosDesdeMedianoche = (horaString) => {
-    if (!horaString) return 0;
-    const [h, m] = horaString.split(':').map(Number);
-    return (h * 60) + m;
-  };
+  // Duraciones y conversión de horas centralizadas en utils/servicios.js
+  const obtenerDuracionMinutos = duracionServicio;
+  const minutosDesdeMedianoche = aMinutos;
 
   useEffect(() => {
     const dias = [];
@@ -69,12 +69,8 @@ export default function BookingForm({ selectedService }) {
   useEffect(() => {
     if (formData.dia) {
       const fetchCitas = async () => {
-        const { data } = await supabase
-          .from('citas')
-          .select('hora, servicio') 
-          .eq('fecha', formData.dia)
-          .neq('estado', 'Cancelada');
-          
+        // Función segura en Supabase: devuelve solo hora y servicio (sin datos de clientes)
+        const { data } = await supabase.rpc('horas_ocupadas', { p_fecha: formData.dia });
         setCitasDelDia(data || []);
       };
       fetchCitas();
@@ -86,119 +82,67 @@ export default function BookingForm({ selectedService }) {
   // ─── NUEVO: AUTOCOMPLETAR DATOS DE CLIENTES FRECUENTES POR TELÉFONO ───
   const buscarClientePorTelefono = async (telefonoIngresado) => {
     if (telefonoIngresado.length === 8) {
-      const { data } = await supabase
-        .from('citas')
-        .select('cliente_nombre, apellido, email')
-        .eq('telefono', telefonoIngresado)
-        .order('id', { ascending: false })
-        .limit(1)
-        .single();
+      // Función segura en Supabase: devuelve solo nombre y apellido (nunca el correo)
+      const { data } = await supabase.rpc('cliente_por_telefono', { p_telefono: telefonoIngresado });
+      const cliente = Array.isArray(data) ? data[0] : null;
 
-      if (data) {
+      if (cliente) {
         setFormData(prev => ({
           ...prev,
-          nombre: prev.nombre || data.cliente_nombre || '',
-          apellido: prev.apellido || data.apellido || '',
-          email: prev.email || data.email || ''
+          nombre: prev.nombre || cliente.cliente_nombre || '',
+          apellido: prev.apellido || cliente.apellido || ''
         }));
       }
     }
   };
 
   // ─── MOTOR INTELIGENTE DE HORARIOS Y COLISIONES ───
+  // Una hora se ofrece solo si TODOS los bloques de 30 min que ocupa el servicio están disponibles:
+  //  · antes de las 2:00 PM el bloque debe estar ABIERTO desde el panel (cerrado por defecto)
+  //  · desde las 2:00 PM el bloque no debe estar CERRADO desde el panel (abierto por defecto)
+  //  · no puede chocar con otra cita ni terminar después de la hora de cierre
   const generarHoras = () => {
     const horas = [];
-    const ahoraCR = obtenerTiempoCR();
-    
-    const hoyYear = ahoraCR.getFullYear();
-    const hoyMonth = String(ahoraCR.getMonth() + 1).padStart(2, '0');
-    const hoyDay = String(ahoraCR.getDate()).padStart(2, '0');
-    const hoyCRString = `${hoyYear}-${hoyMonth}-${hoyDay}`;
-    
-    const horaActual = ahoraCR.getHours();
-    const minutoActual = ahoraCR.getMinutes();
-    
-    const intervalo = 30; 
-    const duracionSolicitada = obtenerDuracionMinutos(selectedService);
-    
-    let diaSeleccionadoIndex = -1;
-    if (formData.dia) {
-      const [y, m, d] = formData.dia.split('-');
-      const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
-      diaSeleccionadoIndex = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
-    }
+    if (!formData.dia) return horas;
 
-    const bloqueosDelDia = bloqueos.filter(b => b.dia_semana === diaSeleccionadoIndex);
+    const esHoy = formData.dia === hoyCR();
+    const ahoraMin = aMinutos(horaCR());
+    const duracion = duracionServicio(selectedService);
 
-    for (let h = 8; h < 20; h++) {
-      for (let m = 0; m < 60; m += intervalo) {
-        
-        const horaStr = `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : m}`;
-        const startSolicitado = (h * 60) + m;
-        const endSolicitado = startSolicitado + duracionSolicitada; 
-        const isManana = h < 14;
+    const dow = diaSemana(formData.dia);
+    const diaIdx = dow === 0 ? 7 : dow; // 1 = Lunes … 6 = Sábado
+    const bloqueosDelDia = bloqueos.filter(b => b.dia_semana === diaIdx);
+    const aperturasManana = new Set(
+      bloqueosDelDia.filter(b => b.hora_inicio === b.hora_fin).map(b => b.hora_inicio.substring(0, 5))
+    );
+    const cierresTarde = bloqueosDelDia
+      .filter(b => b.hora_inicio !== b.hora_fin)
+      .map(b => [aMinutos(b.hora_inicio.substring(0, 5)), aMinutos(b.hora_fin.substring(0, 5))]);
 
-        // 1. ¿Choca con alguna CITA existente?
-        let hayChoque = false;
-        for (const cita of citasDelDia) {
-          const startCita = minutosDesdeMedianoche(cita.hora.substring(0, 5));
-          const endCita = startCita + obtenerDuracionMinutos(cita.servicio);
-          
-          if (startSolicitado < endCita && endSolicitado > startCita) {
-            hayChoque = true;
-            break;
-          }
-        }
+    for (let inicio = HORA_APERTURA * 60; inicio + duracion <= HORA_CIERRE * 60; inicio += INTERVALO_MIN) {
+      const fin = inicio + duracion;
 
-        // 2. ¿Choca con algún CIERRE en la tarde de tu panel?
-        if (!hayChoque && !isManana) {
-          const bloqueosTarde = bloqueosDelDia.filter(b => b.hora_inicio !== b.hora_fin);
-          for (const b of bloqueosTarde) {
-            const startBloqueo = minutosDesdeMedianoche(b.hora_inicio.substring(0, 5));
-            const endBloqueo = minutosDesdeMedianoche(b.hora_fin.substring(0, 5));
-            if (startSolicitado < endBloqueo && endSolicitado > startBloqueo) {
-              hayChoque = true;
-              break;
-            }
-          }
-        }
+      // Evitar que agenden en el pasado el día de hoy
+      if (esHoy && inicio <= ahoraMin) continue;
 
-        // 3. ¿El horario de la mañana está totalmente ABIERTO para la duración requerida?
-        let abiertoEnManana = true;
-        if (isManana) {
-          const bloquesNecesarios = duracionSolicitada / 30; 
-          for (let step = 0; step < bloquesNecesarios; step++) {
-            const checkMin = startSolicitado + (step * 30);
-            const checkH = Math.floor(checkMin / 60);
-            const checkM = checkMin % 60;
-            const checkHoraDB = `${checkH.toString().padStart(2, '0')}:${checkM === 0 ? '00' : '30'}:00`;
-            
-            const bloqueAbierto = bloqueosDelDia.some(b => b.hora_inicio === checkHoraDB && b.hora_fin === checkHoraDB);
-            if (!bloqueAbierto) {
-              abiertoEnManana = false;
-              break;
-            }
-          }
-        }
-
-        // DECISIÓN FINAL: ¿Mostramos la hora?
-        let mostrarHora = false;
-        if (isManana) {
-          if (abiertoEnManana && !hayChoque) mostrarHora = true;
-        } else {
-          if (!hayChoque) mostrarHora = true;
-        }
-
-        // Evitar que agenden en el pasado el día de hoy
-        const esHoy = formData.dia === hoyCRString;
-        const esHoraPasada = esHoy && (startSolicitado <= (horaActual * 60 + minutoActual));
-
-        if (mostrarHora && !esHoraPasada) {
-          const hora12h = h > 12 ? h - 12 : h;
-          const ampm = h >= 12 ? 'PM' : 'AM';
-          horas.push({ valor: horaStr, texto: `${hora12h}:${m === 0 ? '00' : m} ${ampm}` });
+      let disponible = true;
+      for (let t = inicio; t < fin; t += INTERVALO_MIN) {
+        if (t < INICIO_TARDE * 60) {
+          if (!aperturasManana.has(aHora(t))) { disponible = false; break; }
+        } else if (cierresTarde.some(([ini, f]) => seCruzan(t, t + INTERVALO_MIN, ini, f))) {
+          disponible = false; break;
         }
       }
+      if (!disponible) continue;
+
+      const chocaConCita = citasDelDia.some(c => {
+        const ini = aMinutos(c.hora.substring(0, 5));
+        return seCruzan(inicio, fin, ini, ini + duracionServicio(c.servicio));
+      });
+      if (chocaConCita) continue;
+
+      const valor = aHora(inicio);
+      horas.push({ valor, texto: formatearHora(valor) });
     }
     return horas;
   };
@@ -214,11 +158,7 @@ export default function BookingForm({ selectedService }) {
     setLoading(true);
 
     // DOUBLE CHECK: Validamos colisiones en la base de datos por si 2 personas guardan a la vez
-    const { data: checkData } = await supabase
-      .from('citas')
-      .select('hora, servicio')
-      .eq('fecha', formData.dia)
-      .neq('estado', 'Cancelada');
+    const { data: checkData } = await supabase.rpc('horas_ocupadas', { p_fecha: formData.dia });
 
     const startNuevo = minutosDesdeMedianoche(formData.hora);
     const endNuevo = startNuevo + obtenerDuracionMinutos(selectedService);
@@ -239,8 +179,11 @@ export default function BookingForm({ selectedService }) {
       return;
     }
 
-    // Insertar cita
-    const { data: citaData, error } = await supabase.from('citas').insert([{
+    // Código secreto para el enlace de cancelación (no se puede adivinar como el número de cita)
+    const cancelToken = generarToken();
+
+    // Insertar cita (sin leerla de vuelta: el público ya no tiene permiso de lectura)
+    const { error } = await supabase.from('citas').insert([{
       fecha: formData.dia, 
       hora: formData.hora, 
       cliente_nombre: formData.nombre,
@@ -248,19 +191,19 @@ export default function BookingForm({ selectedService }) {
       email: formData.email, 
       telefono: formData.telefono,
       servicio: selectedService || 'Corte', 
-      precio: 0, 
-      estado: 'pendiente'
-    }]).select();
+      precio: precioServicio(selectedService), 
+      estado: 'pendiente',
+      cancel_token: cancelToken
+    }]);
 
-    if (error || !citaData) {
+    if (error) {
       alert("Error al reservar: " + error.message);
       setLoading(false);
       return;
     }
 
     // ENVIAR CORREOS
-    const citaId = citaData[0].id;
-    const cancelLink = `${window.location.origin}/#/cancelar-cita?id=${citaId}`;
+    const cancelLink = `${window.location.origin}/#/cancelar-cita?token=${cancelToken}`;
 
     const templateParams = {
       cliente_nombre: formData.nombre,
