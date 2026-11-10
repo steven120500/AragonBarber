@@ -5,6 +5,33 @@ import emailjs from '@emailjs/browser';
 import { duracionServicio, precioServicio, aMinutos, aHora, seCruzan, HORA_APERTURA, HORA_CIERRE, INICIO_TARDE, INTERVALO_MIN } from '../../utils/servicios';
 import { hoyCR, horaCR, diaSemana, formatearHora } from '../../utils/formato';
 
+// ─── DATOS DEL CLIENTE RECORDADOS EN SU PROPIO DISPOSITIVO ───
+// Se guardan solo en el navegador de quien reservó (nunca se consultan en el servidor),
+// así el correo se autocompleta la próxima vez sin exponer datos de otras personas.
+const CLAVE_CLIENTES = 'ab_clientes_recordados';
+const MAX_CLIENTES = 5;
+
+const leerClientesGuardados = () => {
+  try {
+    const datos = JSON.parse(localStorage.getItem(CLAVE_CLIENTES) || '{}');
+    return datos && typeof datos === 'object' ? datos : {};
+  } catch {
+    return {};
+  }
+};
+
+const guardarCliente = ({ telefono, nombre, apellido, email }) => {
+  try {
+    const datos = leerClientesGuardados();
+    delete datos[telefono];
+    const actualizados = { [telefono]: { nombre, apellido, email }, ...datos };
+    const recortados = Object.fromEntries(Object.entries(actualizados).slice(0, MAX_CLIENTES));
+    localStorage.setItem(CLAVE_CLIENTES, JSON.stringify(recortados));
+  } catch {
+    // Modo privado o almacenamiento bloqueado: simplemente no se recuerda
+  }
+};
+
 // UUID v4 aleatorio (usa crypto.randomUUID cuando está disponible)
 const generarToken = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -82,7 +109,19 @@ export default function BookingForm({ selectedService }) {
   // ─── NUEVO: AUTOCOMPLETAR DATOS DE CLIENTES FRECUENTES POR TELÉFONO ───
   const buscarClientePorTelefono = async (telefonoIngresado) => {
     if (telefonoIngresado.length === 8) {
-      // Función segura en Supabase: devuelve solo nombre y apellido (nunca el correo)
+      // 1) ¿Este dispositivo ya reservó con este número? Se completa todo, incluido el correo.
+      const recordado = leerClientesGuardados()[telefonoIngresado];
+      if (recordado) {
+        setFormData(prev => ({
+          ...prev,
+          nombre: prev.nombre || recordado.nombre || '',
+          apellido: prev.apellido || recordado.apellido || '',
+          email: prev.email || recordado.email || ''
+        }));
+        return;
+      }
+
+      // 2) Función segura en Supabase: devuelve solo nombre y apellido (nunca el correo)
       const { data } = await supabase.rpc('cliente_por_telefono', { p_telefono: telefonoIngresado });
       const cliente = Array.isArray(data) ? data[0] : null;
 
@@ -204,6 +243,9 @@ export default function BookingForm({ selectedService }) {
 
     // ENVIAR CORREOS
     const cancelLink = `${window.location.origin}/#/cancelar-cita?token=${cancelToken}`;
+
+    // Recordar los datos en este dispositivo para la próxima reserva
+    guardarCliente({ telefono: formData.telefono, nombre: formData.nombre, apellido: formData.apellido, email: formData.email });
 
     const templateParams = {
       cliente_nombre: formData.nombre,
