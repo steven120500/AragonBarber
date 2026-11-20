@@ -8,25 +8,31 @@ import { hoyCR, horaCR, diaSemana, formatearHora } from '../../utils/formato';
 // ─── DATOS DEL CLIENTE RECORDADOS EN SU PROPIO DISPOSITIVO ───
 // Se guardan solo en el navegador de quien reservó (nunca se consultan en el servidor),
 // así el correo se autocompleta la próxima vez sin exponer datos de otras personas.
-const CLAVE_CLIENTES = 'ab_clientes_recordados';
+const CLAVE_CLIENTES = 'ab_clientes_recordados_v2';
 const MAX_CLIENTES = 5;
 
+const texto = (v) => (typeof v === 'string' ? v : '');
+
+// Lista ordenada del más reciente al más antiguo (un arreglo, no un objeto: las claves
+// numéricas como los teléfonos se reordenan solas y romperían el orden de recientes)
 const leerClientesGuardados = () => {
   try {
-    const datos = JSON.parse(localStorage.getItem(CLAVE_CLIENTES) || '{}');
-    return datos && typeof datos === 'object' ? datos : {};
+    const datos = JSON.parse(localStorage.getItem(CLAVE_CLIENTES) || '[]');
+    if (!Array.isArray(datos)) return [];
+    return datos
+      .filter(c => c && typeof c === 'object' && typeof c.telefono === 'string')
+      .map(c => ({ telefono: c.telefono, nombre: texto(c.nombre), apellido: texto(c.apellido), email: texto(c.email) }));
   } catch {
-    return {};
+    return [];
   }
 };
 
 const guardarCliente = ({ telefono, nombre, apellido, email }) => {
   try {
-    const datos = leerClientesGuardados();
-    delete datos[telefono];
-    const actualizados = { [telefono]: { nombre, apellido, email }, ...datos };
-    const recortados = Object.fromEntries(Object.entries(actualizados).slice(0, MAX_CLIENTES));
-    localStorage.setItem(CLAVE_CLIENTES, JSON.stringify(recortados));
+    const lista = leerClientesGuardados().filter(c => c.telefono !== telefono);
+    lista.unshift({ telefono, nombre, apellido, email });
+    localStorage.setItem(CLAVE_CLIENTES, JSON.stringify(lista.slice(0, MAX_CLIENTES)));
+    localStorage.removeItem('ab_clientes_recordados'); // formato anterior
   } catch {
     // Modo privado o almacenamiento bloqueado: simplemente no se recuerda
   }
@@ -110,7 +116,7 @@ export default function BookingForm({ selectedService }) {
   const buscarClientePorTelefono = async (telefonoIngresado) => {
     if (telefonoIngresado.length === 8) {
       // 1) ¿Este dispositivo ya reservó con este número? Se completa todo, incluido el correo.
-      const recordado = leerClientesGuardados()[telefonoIngresado];
+      const recordado = leerClientesGuardados().find(c => c.telefono === telefonoIngresado);
       if (recordado) {
         setFormData(prev => ({
           ...prev,
